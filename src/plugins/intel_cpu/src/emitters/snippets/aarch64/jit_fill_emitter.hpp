@@ -1,10 +1,17 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <cpu/aarch64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+
 #include "emitters/plugin/aarch64/jit_emitter.hpp"
+#include "snippets/lowered/expression.hpp"
 
 namespace ov::intel_cpu::aarch64 {
 

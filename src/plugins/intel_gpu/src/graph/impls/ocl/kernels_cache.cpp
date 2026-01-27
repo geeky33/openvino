@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -115,7 +115,7 @@ namespace cldnn {
 std::mutex kernels_cache::_mutex;
 
 std::string kernels_cache::get_cache_path() const {
-    auto path = _config.get_cache_dir();
+    auto path = ov::util::path_to_string(_config.get_cache_dir());
     if (path.empty()) {
         return {};
     }
@@ -212,13 +212,6 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
             current_batch.entry_point_to_id.emplace(entry_point, std::make_pair(code.params, kernel_part_idx));
 
             current_batch.has_microkernels |= kernel_string->has_microkernels;
-
-            // TODO: Technically, microkernels doesn't require specific headers, but we don't want to include
-            // some headers to all batches as it may lead to compilation error on some driver versions.
-            // Need to generalize work with headers to include only necessary parts
-            if (current_batch.has_microkernels) {
-                current_batch.source.insert(current_batch.source.begin(), current_batch.micro_headers.begin(), current_batch.micro_headers.end());
-            }
 
             current_batch.source.push_back(std::move(full_code));
             current_batch.kernels_counter++;
@@ -378,7 +371,7 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
         std::vector<uint8_t> bin;
         {
             std::lock_guard<std::mutex> lock(cacheAccessMutex);
-            bin = ov::util::load_binary(cached_bin_name);
+            bin = ov::util::load_binary(ov::util::make_path(cached_bin_name));
         }
         if (!bin.empty()) {
             precompiled_kernels.push_back(bin);
@@ -527,6 +520,8 @@ bool kernels_cache::validate_simple_kernel_execution(kernel::ptr krl) {
     auto kernel = casted->get_handle();
     try {
         auto casted_dev = dynamic_cast<ocl::ocl_device*>(_device.get());
+        OPENVINO_ASSERT(casted_dev != nullptr, "device is nullptr");
+
         auto device = casted_dev->get_device();
         cl::Context ctx(device);
 

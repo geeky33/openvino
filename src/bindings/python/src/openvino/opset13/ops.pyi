@@ -1,11 +1,7 @@
 # type: ignore
-"""
-Factory functions for ops added to openvino opset13.
-"""
+from __future__ import annotations
 from functools import partial
 from functools import singledispatch
-from __future__ import annotations
-from openvino.opset1.ops import convert_like
 from openvino._pyopenvino import Node
 from openvino._pyopenvino import Output
 from openvino._pyopenvino import Shape
@@ -13,6 +9,7 @@ from openvino._pyopenvino import Tensor
 from openvino._pyopenvino import Type
 from openvino._pyopenvino.op import Constant
 from openvino._pyopenvino.op import Result
+from openvino.opset1.ops import convert_like
 from openvino.utils.decorators import binary_op
 from openvino.utils.decorators import nameable_op
 from openvino.utils.decorators import overloading
@@ -26,7 +23,10 @@ import numpy as np
 import openvino._pyopenvino
 import openvino.utils.decorators
 import typing
-__all__ = ['Constant', 'Node', 'NodeInput', 'NumericData', 'NumericType', 'Output', 'Result', 'Shape', 'Tensor', 'Type', 'as_node', 'as_nodes', 'binary_op', 'bitwise_and', 'bitwise_not', 'bitwise_or', 'bitwise_xor', 'constant', 'convert_like', 'fake_convert', 'fake_quantize', 'log', 'logging', 'multinomial', 'nameable_op', 'nms_rotated', 'np', 'overloading', 'partial', 'result', 'scaled_dot_product_attention', 'singledispatch', 'unary_op']
+"""
+Factory functions for ops added to openvino opset13.
+"""
+__all__: list[str] = ['Constant', 'Node', 'NodeInput', 'NumericData', 'NumericType', 'Output', 'Result', 'Shape', 'Tensor', 'Type', 'as_node', 'as_nodes', 'binary_op', 'bitwise_and', 'bitwise_not', 'bitwise_or', 'bitwise_xor', 'constant', 'convert_like', 'fake_convert', 'fake_quantize', 'log', 'logging', 'multinomial', 'nameable_op', 'nms_rotated', 'np', 'overloading', 'partial', 'result', 'scaled_dot_product_attention', 'singledispatch', 'unary_op']
 def bitwise_and(left, right, *args, **kwargs) -> openvino._pyopenvino.Node:
     """
     Return node which performs bitwise AND operation on input nodes element-wise.
@@ -35,7 +35,8 @@ def bitwise_and(left, right, *args, **kwargs) -> openvino._pyopenvino.Node:
     
         :param left_node: Tensor of integer or boolean datatype providing data.
         :param right_node: Tensor of integer or boolean datatype providing data.
-        :param auto_broadcast: The type of broadcasting specifies rules used for auto-broadcasting of input tensors. Defaults to “NUMPY”.
+        :param auto_broadcast: The type of broadcasting specifies rules used for
+                               auto-broadcasting of input tensors. Defaults to "NUMPY".
         :param name: The optional new name for output node.
         :return: The node performing bitwise AND operation on input nodes corresponding elements.
         
@@ -59,7 +60,8 @@ def bitwise_or(left, right, *args, **kwargs) -> openvino._pyopenvino.Node:
     
         :param left_node: Tensor of integer or boolean datatype providing data.
         :param right_node: Tensor of integer or boolean datatype providing data.
-        :param auto_broadcast: The type of broadcasting specifies rules used for auto-broadcasting of input tensors. Defaults to “NUMPY”.
+        :param auto_broadcast: The type of broadcasting specifies rules used for
+                               auto-broadcasting of input tensors. Defaults to "NUMPY".
         :param name: The optional new name for output node.
         :return: The node performing bitwise OR operation on input nodes corresponding elements.
         
@@ -72,7 +74,8 @@ def bitwise_xor(left, right, *args, **kwargs) -> openvino._pyopenvino.Node:
     
         :param left_node: Tensor of integer or boolean datatype providing data.
         :param right_node: Tensor of integer or boolean datatype providing data.
-        :param auto_broadcast: The type of broadcasting specifies rules used for auto-broadcasting of input tensors. Defaults to “NUMPY”.
+        :param auto_broadcast: The type of broadcasting specifies rules used for
+                               auto-broadcasting of input tensors. Defaults to "NUMPY".
         :param name: The optional new name for output node.
         :return: The node performing bitwise XOR operation on input nodes corresponding elements.
         
@@ -149,15 +152,19 @@ def nms_rotated(*args, **kwargs) -> openvino._pyopenvino.Node:
     """
     Return a node which performs NMSRotated.
     
-        :param boxes: Tensor with box coordinates of floating point type and shape [num_batches, num_boxes, 5],
-                      where the last dimension is defined as [x_ctr, y_ctr, width, height, angle_radians].
-        :param scores: Tensor with box scores of floating point type and shape [num_batches, num_classes, num_boxes].
-        :param max_output_boxes_per_class: Tensor (scalar or 1D) of integer type, specifying maximum number of boxes
-                                            to be selected per class.
-        :param iou_threshold: Tensor (scalar or 1D) of floating point type, specifying intersection over union threshold
-        :param score_threshold: Tensor (scalar or 1D) of floating point type, specifying minimum score to consider box for the processing.
-        :param sort_result_descending: Flag that specifies whenever it is necessary to sort selected
-                                       boxes across batches or not.
+        :param boxes: Tensor with box coordinates of floating point type and shape
+                      [num_batches, num_boxes, 5], where the last dimension is defined as
+                      [x_ctr, y_ctr, width, height, angle_radians].
+        :param scores: Tensor with box scores of floating point type and shape
+                       [num_batches, num_classes, num_boxes].
+        :param max_output_boxes_per_class: Tensor (scalar or 1D) of integer type, specifying
+                                            maximum number of boxes to be selected per class.
+        :param iou_threshold: Tensor (scalar or 1D) of floating point type, specifying
+                              intersection over union threshold
+        :param score_threshold: Tensor (scalar or 1D) of floating point type, specifying
+                                minimum score to consider box for the processing.
+        :param sort_result_descending: Flag that specifies whenever it is necessary to sort
+                                       selected boxes across batches or not.
         :param output_type: Output element type.
         :param clockwise: Flag that specifies direction of the box rotation.
         :return: The new node which performs NMSRotated

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,6 +40,7 @@ class OPENVINO_RUNTIME_API Core {
     std::shared_ptr<Impl> _impl;
 
 public:
+    ///@{
     /** @brief Constructs an OpenVINO Core instance with devices
      * and their plugins description.
      *
@@ -54,6 +55,12 @@ public:
      * 2. (static build) statically defined configuration. In this case path to the .xml file is ignored.
      */
     explicit Core(const std::string& xml_config_file = {});
+
+    explicit Core(const std::filesystem::path& xml_config_file);
+
+    template <class TPath, std::enable_if_t<std::is_constructible_v<std::string, TPath>>* = nullptr>
+    explicit Core(const TPath& xml_config_file) : Core(std::string(xml_config_file)) {}
+    ///@}
 
     /**
      * @brief Returns device plugins version information.
@@ -108,7 +115,12 @@ public:
 
     template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     auto read_model(const Path& model_path, const Path& bin_path = {}, const ov::AnyMap& properties = {}) const {
-        return read_model(model_path.string(), bin_path.string(), properties);
+        if constexpr (std::is_same_v<typename Path::value_type, wchar_t>) {
+            return read_model(model_path.wstring(), bin_path.wstring(), properties);
+        } else {
+            // use string conversion as default
+            return read_model(model_path.string(), bin_path.string(), properties);
+        }
     }
     /// @}
 
@@ -140,7 +152,12 @@ public:
               class... Properties,
               std::enable_if_t<std::is_same_v<Path, std::filesystem::path> && (sizeof...(Properties) > 0)>* = nullptr>
     auto read_model(const Path& model_path, const Path& bin_path, Properties&&... properties) const {
-        return read_model(model_path.string(), bin_path.string(), std::forward<Properties>(properties)...);
+        if constexpr (std::is_same_v<typename Path::value_type, wchar_t>) {
+            return read_model(model_path.wstring(), bin_path.wstring(), std::forward<Properties>(properties)...);
+        } else {
+            // use string conversion as default
+            return read_model(model_path.string(), bin_path.string(), std::forward<Properties>(properties)...);
+        }
     }
     /// @}
 
@@ -245,7 +262,10 @@ public:
 
     template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     auto compile_model(const Path& model_path, const AnyMap& properties = {}) const {
-        return compile_model(model_path.string(), properties);
+        if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
+            return compile_model(model_path.wstring(), properties);
+        else
+            return compile_model(model_path.string(), properties);
     }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -276,7 +296,10 @@ public:
 
     template <class Path, class... Properties, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     auto compile_model(const Path& model_path, Properties&&... properties) {
-        return compile_model(model_path.string(), std::forward<Properties>(properties)...);
+        if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
+            return compile_model(model_path.wstring(), std::forward<Properties>(properties)...);
+        else
+            return compile_model(model_path.string(), std::forward<Properties>(properties)...);
     }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -308,7 +331,10 @@ public:
 
     template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     auto compile_model(const Path& model_path, const std::string& device_name, const AnyMap& properties = {}) {
-        return compile_model(model_path.string(), device_name, properties);
+        if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
+            return compile_model(model_path.wstring(), device_name, properties);
+        else
+            return compile_model(model_path.string(), device_name, properties);
     }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -342,7 +368,10 @@ public:
 
     template <class Path, class... Properties, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     auto compile_model(const Path& model_path, const std::string& device_name, Properties&&... properties) {
-        return compile_model(model_path.string(), device_name, std::forward<Properties>(properties)...);
+        if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
+            return compile_model(model_path.wstring(), device_name, std::forward<Properties>(properties)...);
+        else
+            return compile_model(model_path.string(), device_name, std::forward<Properties>(properties)...);
     }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -427,21 +456,24 @@ public:
      * @param library_path Path to the library with ov::Extension.
      * @{
      */
+    void add_extension(const std::filesystem::path& library_path);
+
     void add_extension(const std::string& library_path);
 
-    template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
-    void add_extension(const Path& model_path) {
-        add_extension(model_path.string());
+    template <class TPath, std::enable_if_t<std::is_constructible_v<std::string, TPath>>* = nullptr>
+    void add_extension(const TPath& library_path) {
+        add_extension(std::string(library_path));
     }
-    /// @}
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-    /**
-     * @brief Registers an extension to a Core object.
-     * @param library_path Unicode path to the library with ov::Extension.
-     */
     void add_extension(const std::wstring& library_path);
+
+    template <class TPath, std::enable_if_t<std::is_constructible_v<std::wstring, TPath>>* = nullptr>
+    void add_extension(const TPath& library_path) {
+        add_extension(std::wstring(library_path));
+    }
 #endif
+    /// @}
 
     /**
      * @brief Registers an extension to a Core object.
@@ -518,7 +550,8 @@ public:
     /**
      * @brief Imports a compiled model from the previously exported one.
      * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types.
-     * @param model_stream Model stream.
+     * @param model_stream std::istream input stream containing a model previously exported using the
+     * ov::CompiledModel::export_model method.
      * @param device_name Name of a device to import a compiled model for. Note, if @p device_name device was not used
      * to compile the original mode, an exception is thrown.
      * @param properties Optional pack of pairs: (property name, property value) relevant only for this
@@ -534,8 +567,8 @@ public:
 
     /**
      * @brief Imports a compiled model from the previously exported one with the specified remote context.
-     * @param model_stream std::istream input stream containing a model previously exported from
-     * ov::CompiledModel::export_model
+     * @param model_stream std::istream input stream containing a model previously exported using the
+     * ov::CompiledModel::export_model method.
      * @param context A reference to a RemoteContext object. Note, if the device from @p context was not used to compile
      * the original mode, an exception is thrown.
      * @param properties Optional map of pairs: (property name, property value) relevant only for this load
@@ -547,10 +580,10 @@ public:
     /**
      * @brief Imports a compiled model from the previously exported one with the specified remote context.
      * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types.
-     * @param model_stream Model stream.
+     * @param model_stream std::istream input stream containing a model previously exported using the
+     * ov::CompiledModel::export_model method.
      * @param context Pointer to a RemoteContext object.
-     * @param properties Optional pack of pairs: (property name, property value) relevant only for this
-     * load operation.
+     * @param properties Optional pack of pairs: (property name, property value) relevant only for this load operation.
      * @return A compiled model.
      */
     template <typename... Properties>
@@ -558,6 +591,68 @@ public:
                                                                           const RemoteContext& context,
                                                                           Properties&&... properties) {
         return import_model(model_stream, context, AnyMap{std::forward<Properties>(properties)...});
+    }
+
+    /**
+     * @brief Imports a compiled model from the previously exported one.
+     * @param compiled_blob ov::Tensor input blob containing a model previously exported using the
+     * ov::CompiledModel::export_model method.
+     * @param device_name Name of a device to import a compiled model for. Note, if @p device_name device was not used
+     * to compile the original mode, an exception is thrown.
+     * @param properties Optional map of pairs: (property name, property value) relevant only for this load
+     * operation.
+     * @return A compiled model.
+     */
+    CompiledModel import_model(const ov::Tensor& compiled_blob,
+                               const std::string& device_name,
+                               const AnyMap& properties = {});
+
+    /**
+     * @brief Imports a compiled model from the previously exported one.
+     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types.
+     * @param compiled_blob ov::Tensor input blob containing a model previously exported using the
+     * ov::CompiledModel::export_model method.
+     * @param device_name Name of a device to import a compiled model for. Note, if @p device_name device was not used
+     * to compile the original mode, an exception is thrown.
+     * @param properties Optional pack of pairs: (property name, property value) relevant only for this
+     * load operation.
+     * @return A compiled model.
+     */
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> import_model(const ov::Tensor& compiled_blob,
+                                                                          const std::string& device_name,
+                                                                          Properties&&... properties) {
+        return import_model(compiled_blob, device_name, AnyMap{std::forward<Properties>(properties)...});
+    }
+
+    /**
+     * @brief Imports a compiled model from the previously exported one with the specified remote context.
+     * @param compiled_blob ov::Tensor input blob containing a model previously exported using the
+     * ov::CompiledModel::export_model method.
+     * @param context A reference to a RemoteContext object. Note, if the device from @p context was not used to compile
+     * the original mode, an exception is thrown.
+     * @param properties Optional map of pairs: (property name, property value) relevant only for this load
+     * operation.
+     * @return A compiled model.
+     */
+    CompiledModel import_model(const ov::Tensor& compiled_blob,
+                               const RemoteContext& context,
+                               const AnyMap& properties = {});
+
+    /**
+     * @brief Imports a compiled model from the previously exported one with the specified remote context.
+     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types.
+     * @param compiled_blob ov::Tensor input blob containing a model previously exported using the
+     * ov::CompiledModel::export_model method.
+     * @param context Pointer to a RemoteContext object.
+     * @param properties Optional pack of pairs: (property name, property value) relevant only for this load operation.
+     * @return A compiled model.
+     */
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> import_model(const ov::Tensor& compiled_blob,
+                                                                          const RemoteContext& context,
+                                                                          Properties&&... properties) {
+        return import_model(compiled_blob, context, AnyMap{std::forward<Properties>(properties)...});
     }
 
     /**
@@ -734,6 +829,7 @@ public:
      */
     std::vector<std::string> get_available_devices() const;
 
+    ///@{
     /**
      * @brief Register a new device and plugin that enables this device inside OpenVINO Runtime.
      *
@@ -745,12 +841,26 @@ public:
      * - If `plugin` specifies file name (`libplugin_name.so`) or plugin name (`plugin_name`), it will be searched by
      *   file name (`libplugin_name.so`) in CWD or in paths pointed by PATH/LD_LIBRARY_PATH/DYLD_LIBRARY_PATH
      *   environment variables depending on the platform.
-     * @note For security purposes it suggested to specify absolute path to register plugin.
+     * @note For security, use an absolute path to register plugin.
      *
      * @param device_name Device name to register a plugin for.
      * @param config Plugin configuration options
      */
     void register_plugin(const std::string& plugin, const std::string& device_name, const ov::AnyMap& config = {});
+
+    void register_plugin(const std::filesystem::path& plugin_path,
+                         const std::string& device_name,
+                         const ov::AnyMap& config = {});
+
+    template <class Path>
+    void register_plugin(const Path& plugin_path, const std::string& device_name, const AnyMap& config = {}) {
+        if constexpr (std::is_constructible_v<std::string, Path>) {
+            register_plugin(std::string(plugin_path), device_name, config);
+        } else {
+            register_plugin(std::filesystem::path(plugin_path), device_name, config);
+        }
+    }
+    ///@}
 
     /**
      * @brief Unloads the previously loaded plugin identified by @p device_name from OpenVINO Runtime.
@@ -761,6 +871,7 @@ public:
      */
     void unload_plugin(const std::string& device_name);
 
+    ///@{
     /** @brief Registers a device plugin to the OpenVINO Runtime Core instance using an XML configuration file with
      * plugins description.
      *
@@ -787,11 +898,23 @@ public:
      *    for different systems with different configurations.
      * - `properties` are set to a plugin via the ov::Core::set_property method.
      * - `extensions` are set to a plugin via the ov::Core::add_extension method.
-     * @note For security purposes it suggested to specify absolute path to register plugin.
+     * @note For security, use an absolute path to register plugin.
      *
      * @param xml_config_file A path to .xml file with plugins to register.
      */
     void register_plugins(const std::string& xml_config_file);
+
+    void register_plugins(const std::filesystem::path& xml_config_file);
+
+    template <class Path>
+    void register_plugins(const Path& xml_config_file) {
+        if constexpr (std::is_constructible_v<std::string, Path>) {
+            register_plugins(std::string(xml_config_file));
+        } else {
+            register_plugins(std::filesystem::path(xml_config_file));
+        }
+    }
+    ///@}
 
     /**
      * @brief Creates a new remote shared context object on the specified accelerator device

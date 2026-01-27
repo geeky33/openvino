@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,6 +28,10 @@ public:
 
     //// \brief Construct Manager with shared PassConfig instance
     explicit Manager(std::shared_ptr<PassConfig> pass_config, std::string name = "UnnamedManager");
+
+    //// \brief Construct Manager with a copied PassConfig instance; it will not share PassConfig as in the constructor
+    /// above
+    explicit Manager(const PassConfig& pass_config, std::string name = "UnnamedManager");
 
     /// \brief Register given transformation class type to execution list
     /// Example below show the basic usage of pass::Manager
@@ -90,8 +94,7 @@ protected:
     std::shared_ptr<T> push_pass(Args&&... args) {
         static_assert(std::is_base_of<pass::PassBase, T>::value, "pass not derived from pass base");
         auto pass = std::make_shared<T>(std::forward<Args>(args)...);
-        auto pass_base = std::static_pointer_cast<PassBase>(pass);
-        m_pass_list.push_back(pass_base);
+        m_pass_list.push_back(pass);
         return pass;
     }
 

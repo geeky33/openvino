@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import tests
@@ -6,7 +6,8 @@ import logging
 import pprint
 from operator import itemgetter
 from pathlib import Path
-from typing import Sequence, Any
+from typing import Any
+from collections.abc import Sequence
 import numpy as np
 
 from tests.tests_python.utils import OpenVinoOnnxBackend

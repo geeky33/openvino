@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +44,7 @@ uint8_t f32_to_f8e8m0_bits(const float value) {
 }
 }  // namespace
 
-float8_e8m0::float8_e8m0(const float value) : m_value(f32_to_f8e8m0_bits(value)){};
+float8_e8m0::float8_e8m0(const float value) : m_value(f32_to_f8e8m0_bits(value)) {};
 
 float8_e8m0::operator float() const {
     constexpr auto f8e8m0_2_power_negative_127 = std::numeric_limits<ov::float8_e8m0>::min();

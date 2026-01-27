@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -121,6 +121,7 @@ const char* impl_type_to_string(impl_desc_type type) {
     CASE(jit_avx512_amx);
     CASE(jit_avx512_amx_1x1);
     CASE(jit_avx512_amx_dw);
+    CASE(jit_avx2_1x1_dw);
     CASE(brgconv_avx512);
     CASE(brgconv_avx2);
     CASE(brgconv_avx);

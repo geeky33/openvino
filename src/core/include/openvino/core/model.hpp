@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,8 +52,6 @@ class OPENVINO_API Model : public std::enable_shared_from_this<Model> {
 
 public:
     OPENVINO_RTTI_BASE("Model")
-
-    Model(const ov::NodeVector& results, const ov::ParameterVector& parameters, const std::string& name = "");
 
     Model(const ov::OutputVector& results, const ov::ParameterVector& parameters, const std::string& name = "");
 

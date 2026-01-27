@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,6 +52,12 @@ public:
                                             const ov::AnyMap& properties) const;
 
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& properties) const;
+
+    SoPtr<ov::ICompiledModel> import_model(const ov::Tensor& model, const ov::AnyMap& properties) const;
+
+    SoPtr<ov::ICompiledModel> import_model(const ov::Tensor& model,
+                                           const ov::SoPtr<ov::IRemoteContext>& context,
+                                           const ov::AnyMap& config) const;
 
     SoPtr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const;
 

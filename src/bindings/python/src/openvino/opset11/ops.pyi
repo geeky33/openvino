@@ -1,9 +1,6 @@
 # type: ignore
-"""
-Factory functions for all openvino ops.
-"""
-from functools import partial
 from __future__ import annotations
+from functools import partial
 from openvino._pyopenvino import Node
 from openvino.utils.decorators import nameable_op
 from openvino.utils.node_factory import _get_node_factory
@@ -11,7 +8,10 @@ from openvino.utils.types import as_nodes
 import functools
 import openvino._pyopenvino
 import typing
-__all__ = ['Node', 'NodeInput', 'as_nodes', 'interpolate', 'nameable_op', 'partial', 'topk']
+"""
+Factory functions for all openvino ops.
+"""
+__all__: list[str] = ['Node', 'NodeInput', 'as_nodes', 'interpolate', 'nameable_op', 'partial', 'topk']
 def interpolate(*args, **kwargs) -> openvino._pyopenvino.Node:
     """
     Perfors the interpolation of the input tensor.

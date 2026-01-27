@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -186,7 +186,7 @@ U4ConvertReshape::U4ConvertReshape() {
             }
 
             NodeVector pattern_nodes;
-            for (auto const& iout : pattern_to_output)
+            for (const auto& iout : pattern_to_output)
                 pattern_nodes.push_back(std::move(iout.first));
 
             copy_runtime_info(pattern_nodes, new_const);

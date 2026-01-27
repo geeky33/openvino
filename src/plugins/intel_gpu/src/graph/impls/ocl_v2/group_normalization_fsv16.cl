@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,13 +17,14 @@ KERNEL(calc_mean_sqr_mean_per_feature)(
     const uint in_data_set_idx = get_global_id(0);
     const uint workers_per_dataset = LWS0 / FSV;    // 16 datasets are handled by one local workgroup
     const uint data_set_size = INPUT0_SIZE_X * INPUT0_SIZE_Y;
-    const uint items_num = data_set_size / workers_per_dataset;
-    const uint leftovers = data_set_size - (items_num * workers_per_dataset);
+    const uint padded_data_set_size = (INPUT0_SIZE_X + INPUT0_PAD_BEFORE_SIZE_X + INPUT0_PAD_AFTER_SIZE_X) * (INPUT0_SIZE_Y + INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y);
+    const uint items_num = padded_data_set_size / workers_per_dataset;
+    const uint leftovers = padded_data_set_size - (items_num * workers_per_dataset);
 
     const uint INPUT0_ALIGNED_FEATURE_NUM = ALIGN(INPUT0_FEATURE_NUM, FSV);
     const uint b = (data_set_idx * FSV) / INPUT0_ALIGNED_FEATURE_NUM;
     const uint f_base = (data_set_idx * FSV) % INPUT0_ALIGNED_FEATURE_NUM;
-    const uint data_set_offset = INPUT0_GET_INDEX(b, f_base, 0, 0);
+    const uint data_set_offset = INPUT0_GET_INDEX(b, f_base, -INPUT0_PAD_BEFORE_SIZE_Y, -INPUT0_PAD_BEFORE_SIZE_X);
     const uint my_data_offset = data_set_offset + in_data_set_idx;
 
     __local ACCUMULATOR_TYPE sum_per_feature[SLM_SIZE];
@@ -67,6 +68,7 @@ KERNEL(calc_mean_sqr_mean_per_feature)(
     }
 }
 #elif GROUP_NORM_KERNEL_GROUP_MEAN_VARIANCE
+REQD_SUB_GROUP_SIZE(SIMD)
 KERNEL(calc_mean_variance_per_group)(
     __global ACCUMULATOR_TYPE* internal_mean,
     __global ACCUMULATOR_TYPE* internal_variance
@@ -111,7 +113,7 @@ KERNEL(group_normalization_b_fs_yx_fsv16)(
     const __global ACCUMULATOR_TYPE* internal_variance
 ) {
     const uint b = get_global_id(1) % OUTPUT_BATCH_NUM;
-    const uint f = get_global_id(1) / OUTPUT_BATCH_NUM * FSV + get_sub_group_local_id();
+    const uint f = get_global_id(1) / OUTPUT_BATCH_NUM * FSV + (get_sub_group_local_id() % FSV);
     const uint yx = get_global_id(0) / FSV;
     const uint y = yx / OUTPUT_SIZE_X;
     const uint x = yx % OUTPUT_SIZE_X;
@@ -131,7 +133,9 @@ KERNEL(group_normalization_b_fs_yx_fsv16)(
             output[output_index] = TO_OUTPUT_TYPE(normalized);
         #endif
     } else {
-        output[output_index] = OUTPUT_VAL_ZERO;
+        #ifdef OUTPUT_LAYOUT_B_FS_YX_FSV16
+            output[output_index] = OUTPUT_VAL_ZERO;
+        #endif
     }
 }
 #endif

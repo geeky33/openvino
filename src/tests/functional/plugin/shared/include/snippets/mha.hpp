@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,7 +53,7 @@ protected:
 class MHA : public testing::WithParamInterface<ov::test::snippets::MHAParams>,
             virtual public MHABase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::MHAParams>& obj);
 
 protected:
     std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
@@ -61,6 +61,11 @@ protected:
     void init_thresholds() override;
 
     bool m_with_mul = false;
+};
+
+class MHA2D : public MHA {
+protected:
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
 };
 
 class MHASelect : public MHA {
@@ -114,14 +119,24 @@ protected:
     std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
 };
 
+class MHARankUpgradeToReductionReshape : public MHA {
+protected:
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
+};
+
 class MHAWithDynamicMul : public testing::WithParamInterface<ov::test::snippets::MHAWithDynamicMulParams>,
                           virtual public MHABase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAWithDynamicMulParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::MHAWithDynamicMulParams>& obj);
 
 protected:
     std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
     void init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) override;
+};
+
+class MHASharedKV : public MHA {
+protected:
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
 };
 
 }  // namespace snippets

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "cpu_types.h"
@@ -7,6 +7,7 @@
 #include <string>
 
 #include "cpu_shape.h"
+#include "utils/caseless.hpp"
 
 namespace ov::intel_cpu {
 
@@ -111,6 +112,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"SpaceToBatch", Type::SpaceToBatch},
         {"DepthToSpace", Type::DepthToSpace},
         {"SpaceToDepth", Type::SpaceToDepth},
+        {"SparseFillEmptyRows", Type::SparseFillEmptyRows},
         {"Roll", Type::Roll},
         {"LRN", Type::Lrn},
         {"Split", Type::Split},
@@ -233,6 +235,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"ExperimentalDetectronGenerateProposalsSingleImage", Type::ExperimentalDetectronGenerateProposalsSingleImage},
         {"ExtractImagePatches", Type::ExtractImagePatches},
         {"GenerateProposals", Type::GenerateProposals},
+        {"Identity", Type::Identity},
         {"Inverse", Type::Inverse},
         {"NonMaxSuppression", Type::NonMaxSuppression},
         {"NonMaxSuppressionIEInternal", Type::NonMaxSuppression},
@@ -247,7 +250,6 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"PriorBox", Type::PriorBox},
         {"PriorBoxClustered", Type::PriorBoxClustered},
         {"Interaction", Type::Interaction},
-        {"MHA", Type::MHA},
         {"Unique", Type::Unique},
         {"Ngram", Type::Ngram},
         {"ScaledDotProductAttention", Type::ScaledDotProductAttention},
@@ -263,7 +265,9 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"QKVProjection", Type::QKVProjection},
         {"RMS", Type::RMS},
         {"SearchSorted", Type::SearchSorted},
-        {"LoraSubgraph", Type::LoRA}};
+        {"LoraSubgraph", Type::LoRA},
+        {"BatchGatherMatmul", Type::GatherMatmul},
+        {"BatchGatherMatmulCompressed", Type::GatherMatmul}};
     return type_to_name_tbl;
 }
 
@@ -310,6 +314,7 @@ std::string NameFromType(const Type type) {
         CASE(Transpose);
         CASE(SpaceToDepth);
         CASE(SpaceToBatch);
+        CASE(SparseFillEmptyRows);
         CASE(MemoryOutput);
         CASE(MemoryInput);
         CASE(RNNSeq);
@@ -372,6 +377,7 @@ std::string NameFromType(const Type type) {
         CASE(ExperimentalDetectronPriorGridGenerator);
         CASE(ExperimentalDetectronGenerateProposalsSingleImage);
         CASE(GenerateProposals);
+        CASE(Identity);
         CASE(Inverse);
         CASE(ExtractImagePatches);
         CASE(NonMaxSuppression);
@@ -383,7 +389,6 @@ std::string NameFromType(const Type type) {
         CASE(SubModel);
         CASE(PriorBox);
         CASE(PriorBoxClustered)
-        CASE(MHA);
         CASE(RandomUniform);
         CASE(Unique);
         CASE(Ngram);
@@ -397,6 +402,7 @@ std::string NameFromType(const Type type) {
         CASE(SearchSorted);
         CASE(SegmentMax);
         CASE(LoRA);
+        CASE(GatherMatmul);
         CASE(Unknown);
     }
 #undef CASE

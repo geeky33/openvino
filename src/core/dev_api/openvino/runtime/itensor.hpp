@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,6 @@
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/runtime/allocator.hpp"
 
 namespace ov {
 
@@ -52,20 +51,47 @@ public:
 
     /**
      * @brief Provides an access to the underlying host memory
-     * @param type Optional type parameter.
-     * @note If type parameter is specified, the method throws an exception
+     * @return A host pointer to tensor memory
+     * @{
+     */
+    virtual void* data() = 0;
+    virtual const void* data() const = 0;
+    /// @}
+
+    /**
+     * @brief Provides an access to the underlying host memory
+     * @note The method throws an exception:
+     * - if tensor implementation does not allow non-const access to memory.
+     * @return A host pointer to tensor memory
+     */
+    virtual void* data_rw() = 0;
+
+    /**
+     * @brief Provides an access to the underlying host memory
+     * @param type Type parameter.
+     * @note The method throws an exception
      * if specified type's fundamental type does not match with tensor element type's fundamental type
      * @return A host pointer to tensor memory
      * @{
      */
-    virtual void* data(const element::Type& type = {});
-    virtual const void* data(const element::Type& type = {}) const = 0;
+    virtual void* data(const element::Type& type) = 0;
+    virtual const void* data(const element::Type& type) const = 0;
     /// @}
 
     /**
+     * @brief Provides an access to the underlying host memory
+     * @param type Type parameter.
+     * @note The method throws an exception:
+     * - if specified type's fundamental type does not match with tensor element type's fundamental type
+     * - if tensor implementation does not allow non-const access to memory.
+     * @return A host pointer to tensor memory
+     */
+    virtual void* data_rw(const element::Type& type) = 0;
+
+    /**
      * @brief Provides an access to the underlying host memory casted to type `T`
-     * @return A host pointer to tensor memory casted to specified type `T`.
      * @note Throws exception if specified type does not match with tensor element type
+     * @return A host pointer to tensor memory casted to specified type `T`.
      */
     template <typename T, typename datatype = typename std::decay<T>::type>
     T* data() {

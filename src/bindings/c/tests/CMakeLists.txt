@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -29,6 +29,8 @@ endif()
 add_dependencies(${TARGET_NAME} mock_engine)
 
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+
+ov_build_target_faster(${TARGET_NAME} PCH PCH_EXCLUDE "ov_windows_conflict_test.cpp")
 
 install(TARGETS ${TARGET_NAME}
     RUNTIME DESTINATION tests

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,14 @@
 
 #include <gmock/gmock.h>
 
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/if.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/util/node_util.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/manager.hpp"
 
 namespace ov::test {

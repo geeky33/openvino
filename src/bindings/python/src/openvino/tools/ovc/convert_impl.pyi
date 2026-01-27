@@ -1,12 +1,13 @@
 # type: ignore
-from collections import OrderedDict
 from __future__ import annotations
-from openvino.frontend.frontend import FrontEndManager
-from openvino._pyopenvino import get_version as get_rt_version
+from collections import OrderedDict
+from collections.abc import Callable
+from collections.abc import Iterable
 from openvino._pyopenvino import OpConversionFailure
 from openvino._pyopenvino import PartialShape
 from openvino._pyopenvino import TelemetryExtension
-from openvino_telemetry.backend import backend_ga4
+from openvino._pyopenvino import get_version as get_rt_version
+from openvino.frontend.frontend import FrontEndManager
 from openvino.tools.ovc.cli_parser import depersonalize
 from openvino.tools.ovc.cli_parser import get_available_front_ends
 from openvino.tools.ovc.cli_parser import get_common_cli_options
@@ -32,8 +33,10 @@ from openvino.tools.ovc.telemetry_utils import send_conversion_result
 from openvino.tools.ovc.telemetry_utils import send_params_info
 from openvino.tools.ovc.utils import check_values_equal
 from openvino.tools.ovc.version import VersionChecker
+from openvino_telemetry.backend import backend_ga4
 from pathlib import Path
 import argparse as argparse
+import collections.abc
 import datetime as datetime
 import logging as log
 import openvino_telemetry as tm
@@ -41,7 +44,7 @@ import os as os
 import sys as sys
 import traceback as traceback
 import tracemalloc as tracemalloc
-__all__ = ['Error', 'FrameworkError', 'FrontEndManager', 'OpConversionFailure', 'OrderedDict', 'PartialShape', 'Path', 'TelemetryExtension', 'VersionChecker', 'add_line_breaks', 'any_extensions_used', 'argparse', 'args_to_argv', 'arguments_post_parsing', 'backend_ga4', 'check_iterable', 'check_model_object', 'check_values_equal', 'datetime', 'depersonalize', 'driver', 'extract_input_info_from_example', 'filtered_extensions', 'get_available_front_ends', 'get_common_cli_options', 'get_compression_message', 'get_convert_model_help_specifics', 'get_jax_decoder', 'get_mo_convert_params', 'get_moc_frontends', 'get_non_default_params', 'get_pytorch_decoder', 'get_pytorch_decoder_for_model_on_disk', 'get_rt_version', 'init_logger', 'init_ovc_telemetry', 'input_model_is_object', 'input_to_input_cut_info', 'is_verbose', 'log', 'moc_emit_ir', 'moc_pipeline', 'normalize_inputs', 'os', 'pack_params_to_args_namespace', 'paddle_frontend_converter', 'parse_inputs', 'prepare_ir', 'print_argv', 'replace_ext', 'send_conversion_result', 'send_params_info', 'show_mo_convert_help', 'sys', 'tf_frontend_with_python_bindings_installed', 'tm', 'to_ov_type', 'traceback', 'tracemalloc']
+__all__: list[str] = ['Callable', 'Error', 'FrameworkError', 'FrontEndManager', 'Iterable', 'OpConversionFailure', 'OrderedDict', 'PartialShape', 'Path', 'TelemetryExtension', 'VersionChecker', 'add_line_breaks', 'any_extensions_used', 'argparse', 'args_to_argv', 'arguments_post_parsing', 'backend_ga4', 'check_iterable', 'check_model_object', 'check_values_equal', 'datetime', 'depersonalize', 'driver', 'extract_input_info_from_example', 'filtered_extensions', 'get_available_front_ends', 'get_common_cli_options', 'get_compression_message', 'get_convert_model_help_specifics', 'get_jax_decoder', 'get_mo_convert_params', 'get_moc_frontends', 'get_non_default_params', 'get_pytorch_decoder', 'get_pytorch_decoder_for_model_on_disk', 'get_rt_version', 'init_logger', 'init_ovc_telemetry', 'input_model_is_object', 'input_to_input_cut_info', 'is_verbose', 'log', 'moc_emit_ir', 'moc_pipeline', 'normalize_inputs', 'os', 'pack_params_to_args_namespace', 'paddle_frontend_converter', 'parse_inputs', 'prepare_ir', 'print_argv', 'replace_ext', 'send_conversion_result', 'send_params_info', 'show_mo_convert_help', 'sys', 'tf_frontend_with_python_bindings_installed', 'tm', 'to_ov_type', 'traceback', 'tracemalloc']
 def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
     ...
 def add_line_breaks(text: str, char_num: int, line_break: str):
@@ -50,7 +53,7 @@ def args_to_argv(**kwargs):
     ...
 def arguments_post_parsing(argv: argparse.Namespace):
     ...
-def check_iterable(iterable: typing.Iterable, func: typing.Callable):
+def check_iterable(iterable: collections.abc.Iterable, func: collections.abc.Callable):
     ...
 def check_model_object(argv):
     ...
@@ -94,4 +97,3 @@ def replace_ext(name: str, old: str, new: str):
     ...
 def show_mo_convert_help():
     ...
-tf_frontend_with_python_bindings_installed: bool = False

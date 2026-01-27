@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,13 +27,11 @@
 #include "transforms/aten_getitem_replacer.hpp"
 #include "transforms/aten_index_put_replacer.hpp"
 #include "transforms/aten_index_replacer.hpp"
-#include "transforms/aten_stack_list_construct_replacer.hpp"
 #include "transforms/dict_resolver.hpp"
 #include "transforms/einsum_list_construct.hpp"
 #include "transforms/index_loop_getitem_replacer.hpp"
 #include "transforms/listconstruct_replacer.hpp"
 #include "transforms/min_max_prim_list_construct_replacer.hpp"
-#include "transforms/prim_list_construct_pad.hpp"
 #include "transforms/prim_list_tuple_construct_replacer.hpp"
 #include "transforms/prim_list_unpack_replacer.hpp"
 #include "transforms/prim_unpack_parameter_replacer.hpp"
@@ -71,7 +69,14 @@ std::map<std::string, std::string> get_unconverted_types_from_model(const std::s
         } else if (const auto& fw_node = ov::as_type_ptr<ov::op::util::FrameworkNode>(node)) {
             auto op_type = std::string(fw_node->get_type_name());
             if (!unconverted_ops_types.count(op_type)) {
-                unconverted_ops_types.emplace(op_type, "This is OpenVINO internal type.");
+                std::stringstream consumer;
+                if (fw_node->get_output_size() > 0) {
+                    auto inputs = fw_node->output(0).get_target_inputs();
+                    if (inputs.size() > 0) {
+                        consumer << " Consumer: " << *(inputs.begin()->get_node());
+                    }
+                }
+                unconverted_ops_types.emplace(op_type, "This is OpenVINO internal type." + consumer.str());
             }
         }
         if (const auto& fw_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
@@ -283,7 +288,6 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         manager.register_pass<ov::frontend::pytorch::pass::TupleUnpackInBodyReplacer>();
         manager.register_pass<ov::frontend::pytorch::pass::AtenCatToConcat>();
         manager.register_pass<ov::frontend::pytorch::pass::AppendListUnpackReplacer>();
-        manager.register_pass<ov::frontend::pytorch::pass::AtenStackListConstructReplacer>();
         manager.register_pass<ov::frontend::pytorch::pass::AtenEinsumListConstructReplacer>();
         manager.register_pass<ov::frontend::pytorch::pass::MinMaxPrimListConstructReplacer>();
         manager.register_pass<ov::frontend::pytorch::pass::StringEqualityReplacer>();
@@ -297,6 +301,9 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         manager.register_pass<ov::frontend::pytorch::pass::ReversepropResolver>();
         manager.register_pass<ov::frontend::pytorch::pass::MovePackThroughLstm>();
         manager.register_pass<ov::frontend::pytorch::pass::RemovePackingOps>();
+        // PrimListUnpackReplacer must run before validation to handle chunk+ListUnpack patterns
+        // that may exist alongside operations with shape inference issues
+        manager.register_pass<ov::frontend::pytorch::pass::PrimListUnpackReplacer>();
         bool is_changed = manager.run_passes(model);
 
         // make validation after previously non-validated passes
@@ -306,13 +313,11 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
 
     ov::pass::Manager manager("Frontend:Pytorch:normalize");
     manager.register_pass<ov::pass::UnrollIf>();
-    manager.register_pass<ov::frontend::pytorch::pass::PrimListUnpackReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenGetItemReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::ListConstructReplacer>();
     // TODO: remove AtenIndexToSelect when problem with  dynamic input rank is gone.
     manager.register_pass<ov::frontend::pytorch::pass::AtenIndexToSelect>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenIndexPutReplacer>();
-    manager.register_pass<ov::frontend::pytorch::pass::PrimListConstructPadReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::IndexLoopGetitemReplacer>();
 
     // Check if model is symmetrically quantized

@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include "lowered/pass/optimize_domain.hpp"
 #include "subgraph_simple.hpp"
 #include "lowering_utils.hpp"
+#include "openvino/op/add.hpp"
 
 namespace ov {
 namespace test {

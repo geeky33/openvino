@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,9 +55,6 @@ public:
     }
 
     bool isActive(ov::log::Level msgLevel) const;
-
-    static std::ostream& getBaseStream();
-    static std::ostream& getLevelStream(ov::log::Level msgLevel);
 
     template <typename... Args>
     void error(const char* format, Args&&... args) const {

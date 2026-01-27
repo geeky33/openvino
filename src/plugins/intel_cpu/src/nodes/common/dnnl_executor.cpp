@@ -1,8 +1,18 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "dnnl_executor.h"
+
+#include <oneapi/dnnl/dnnl_types.h>
+
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <unordered_map>
+
+#include "dnnl_extension_utils.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
 using namespace dnnl;
 
 namespace ov::intel_cpu {
@@ -77,7 +87,7 @@ const_dnnl_primitive_desc_t DnnlExecutorLegacy::getPrimitiveDesc() const {
 }
 
 impl_desc_type DnnlExecutorLegacy::getImplementationType() const {
-    auto pd = getPrimitiveDesc();
+    const auto* pd = getPrimitiveDesc();
     return parse_impl_name(DnnlExtensionUtils::query_impl_info_str(pd));
 }
 

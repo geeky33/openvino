@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,8 +38,8 @@ struct Read;
 template <class T>
 struct Readable {
     template <class U>
-    static auto test(U*)
-        -> decltype(std::declval<Read<U>>()(std::declval<std::istream&>(), std::declval<U&>()), std::true_type()) {
+    static auto test(U*) -> decltype(std::declval<Read<U>>()(std::declval<std::istream&>(), std::declval<U&>()),
+                                     std::true_type()) {
         return {};
     }
     template <typename>

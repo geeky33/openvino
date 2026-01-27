@@ -1,14 +1,12 @@
 # type: ignore
-"""
-Factory functions for all openvino ops.
-"""
-from functools import partial
 from __future__ import annotations
+from builtins import list as TensorShape
+from functools import partial
 from openvino._pyopenvino import Node
 from openvino._pyopenvino import Shape
 from openvino._pyopenvino.op import Constant
-from openvino._pyopenvino.op import loop
 from openvino._pyopenvino.op import Parameter
+from openvino._pyopenvino.op import loop
 from openvino.utils.decorators import binary_op
 from openvino.utils.decorators import nameable_op
 from openvino.utils.decorators import unary_op
@@ -16,8 +14,8 @@ from openvino.utils.input_validation import assert_list_of_ints
 from openvino.utils.input_validation import check_valid_attributes
 from openvino.utils.input_validation import is_non_negative_value
 from openvino.utils.input_validation import is_positive_value
-from openvino.utils.node_factory import _get_node_factory
 from openvino.utils.node_factory import NodeFactory
+from openvino.utils.node_factory import _get_node_factory
 from openvino.utils.types import as_node
 from openvino.utils.types import as_nodes
 from openvino.utils.types import get_dtype
@@ -28,7 +26,10 @@ import functools
 import numpy as np
 import openvino._pyopenvino
 import typing
-__all__ = ['Constant', 'Node', 'NodeFactory', 'NodeInput', 'NumericData', 'NumericType', 'Parameter', 'ScalarData', 'Shape', 'TensorShape', 'as_node', 'as_nodes', 'assert_list_of_ints', 'batch_norm_inference', 'binary_op', 'check_valid_attributes', 'gather_nd', 'get_dtype', 'get_element_type', 'get_element_type_str', 'gru_sequence', 'hsigmoid', 'is_non_negative_value', 'is_positive_value', 'log_softmax', 'loop', 'lstm_sequence', 'make_constant_node', 'nameable_op', 'non_max_suppression', 'np', 'partial', 'rnn_sequence', 'round', 'unary_op']
+"""
+Factory functions for all openvino ops.
+"""
+__all__: list[str] = ['Constant', 'Node', 'NodeFactory', 'NodeInput', 'NumericType', 'Parameter', 'ScalarData', 'Shape', 'TensorShape', 'as_node', 'as_nodes', 'assert_list_of_ints', 'batch_norm_inference', 'binary_op', 'check_valid_attributes', 'gather_nd', 'get_dtype', 'get_element_type', 'get_element_type_str', 'gru_sequence', 'hsigmoid', 'is_non_negative_value', 'is_positive_value', 'log_softmax', 'loop', 'lstm_sequence', 'make_constant_node', 'nameable_op', 'non_max_suppression', 'np', 'partial', 'rnn_sequence', 'round', 'unary_op']
 def batch_norm_inference(*args, **kwargs) -> openvino._pyopenvino.Node:
     """
     Perform layer normalizes a input tensor by mean and variance with appling scale and offset.
@@ -187,8 +188,6 @@ def round(*args, **kwargs) -> openvino._pyopenvino.Node:
         
     """
 NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray]
-NumericData: typing._UnionGenericAlias  # value = typing.Union[int, float, numpy.ndarray]
 NumericType: typing._UnionGenericAlias  # value = typing.Union[type, numpy.dtype]
 ScalarData: typing._UnionGenericAlias  # value = typing.Union[int, float]
-TensorShape: typing._GenericAlias  # value = typing.List[int]
 _get_node_factory_opset5: functools.partial  # value = functools.partial(<function _get_node_factory at memory_address>, 'opset5')

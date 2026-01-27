@@ -1,10 +1,14 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <unordered_map>
+#include <vector>
+
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
+#include "openvino/core/rtti.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/pass/runtime_optimizer.hpp"

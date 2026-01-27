@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,12 +18,8 @@ using ConfigParams = std::tuple<std::string,                     // Priority dev
                                 >;
 class ParseMetaDeviceTest : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
-        std::string priorityDevices;
-        std::vector<DeviceInformation> metaDevices;
-        bool throwException;
-        int expectedTimes;
-        std::tie(priorityDevices, metaDevices, throwException, expectedTimes) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<ConfigParams>& obj) {
+        const auto& [priorityDevices, metaDevices, throwException, expectedTimes] = obj.param;
         std::ostringstream result;
         result << "priorityDevices_" << priorityDevices;
         if (throwException) {

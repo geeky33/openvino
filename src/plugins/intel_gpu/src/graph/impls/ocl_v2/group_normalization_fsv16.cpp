@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "group_normalization_fsv16.hpp"
@@ -18,7 +18,6 @@ namespace ov::intel_gpu::ocl {
 namespace {
 
 constexpr size_t fsv = 16;
-constexpr size_t simd = fsv;
 
 ov::element::Type get_activation_type(const RuntimeParams& params) {
     if (params.get_input_layout(0).data_type == ov::element::f16) {
@@ -42,11 +41,19 @@ class GroupNormalizationGeneratorBase : public KernelGenerator {
 public:
     explicit GroupNormalizationGeneratorBase(std::string_view name, std::string_view suffix) : KernelGenerator(name, suffix) {}
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto get_max_simd_size = [](const RuntimeParams& params) {
+            size_t max_simd_size = fsv;
+            for (auto& simd_size : params.get_device_info().supported_simd_sizes) {
+                max_simd_size = std::max(max_simd_size, simd_size);
+            }
+            return max_simd_size;
+        };
+
         auto jit = KernelGenerator::get_jit_constants(params);
         auto desc = params.typed_desc<group_normalization>();
         jit.make("EPSILON", static_cast<float>(desc->epsilon));
         jit.make("NUM_GROUPS", desc->num_groups);
-        jit.make("SIMD", simd);
+        jit.make("SIMD", get_max_simd_size(params));
         jit.make("FSV", fsv);
 
         if (params.is_dynamic()) {
@@ -101,11 +108,11 @@ protected:
             assert(!params.is_dynamic());
             auto& wgs = kd.params.workGroups;
 
-            const auto& ol = params.output_layouts[0];
-            auto x = extract_channel(ChannelName::X, ol);
-            auto y = extract_channel(ChannelName::Y, ol);
-            auto f = extract_channel(ChannelName::FEATURE, ol);
-            auto b = extract_channel(ChannelName::BATCH, ol);
+            auto padded_dims = params.input_layouts[0].get_padded_dims();
+            auto x = padded_dims[3];
+            auto y = padded_dims[2];
+            auto f = padded_dims[1];
+            auto b = padded_dims[0];
 
             wgs.global[0] = x * y;
             wgs.global[1] = ceil_div(f, fsv) * b;
@@ -279,8 +286,8 @@ public:
     }
 
     std::vector<BufferDescriptor> get_internal_buffer_descs(const RuntimeParams& params) const override {
-        auto desc = params.typed_desc<group_normalization>();
-        const auto& shape = params.output_layouts[0].get_shape();
+        // Use get_max_shape() for upper bounded dynamic shape. This is not called for non upper bounded dynamic shape.
+        const auto& shape = params.output_layouts[0].get_partial_shape().get_max_shape();
         auto buf = BufferDescriptor{shape[0] * align_to(shape[1], fsv), ov::element::f32};
         return {buf, buf};
     }

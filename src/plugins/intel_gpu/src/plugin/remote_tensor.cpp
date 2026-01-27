@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -407,6 +407,10 @@ cldnn::memory::ptr RemoteTensorImpl::get_memory() const {
 
 cldnn::memory::ptr RemoteTensorImpl::get_original_memory() const {
     return m_memory_object;
+}
+
+void* RemoteTensorImpl::get_original_memory_buf_ptr() const {
+    return m_memory_object->buffer_ptr();
 }
 
 void RemoteTensorImpl::set_memory(cldnn::memory::ptr memory, size_t actual_size) {

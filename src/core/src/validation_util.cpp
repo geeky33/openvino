@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,11 +44,10 @@ ov::OutputVector get_inputs_from_map(const std::shared_ptr<ov::Node>& node,
     inputs.reserve(num_inputs);
 
     for (size_t i = 0; i < num_inputs; i++) {
-        auto input = node->input_value(i);
-        if (node_map.count(input) > 0) {
+        if (auto input = node->input_value(i); node_map.count(input) > 0) {
             inputs.push_back(node_map.at(input));
         } else {
-            inputs.push_back(input);
+            inputs.push_back(std::move(input));
         }
     }
 

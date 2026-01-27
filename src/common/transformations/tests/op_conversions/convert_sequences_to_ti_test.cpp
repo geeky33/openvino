@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,20 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset5.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/gru_cell.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/rnn_cell.hpp"
+#include "openvino/op/rnn_sequence.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/tensor_iterator.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/opsets/opset5_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
@@ -19,6 +32,8 @@
 using namespace testing;
 using namespace ov;
 
+namespace v0 = ov::op::v0;
+namespace v5 = ov::op::v5;
 TEST(TransformationTests, ConvertLSTMSequenceToTensorIterator) {
     std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
@@ -50,7 +65,7 @@ TEST(TransformationTests, ConvertLSTMSequenceToTensorIterator) {
         Ho->set_friendly_name("Ho");
         Co->set_friendly_name("Co");
 
-        f = std::make_shared<ov::Model>(NodeVector{Y_out, Ho, Co}, ParameterVector{X, Y, Z});
+        f = std::make_shared<ov::Model>(OutputVector{Y_out, Ho, Co}, ParameterVector{X, Y, Z});
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -118,7 +133,7 @@ TEST(TransformationTests, ConvertLSTMSequenceToTensorIterator) {
         res_ti_Y->set_friendly_name("Y_out");
         res_ti_H->set_friendly_name("Ho");
         res_ti_C->set_friendly_name("Co");
-        f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_Y, res_ti_H, res_ti_C}, ParameterVector{X, Y, Z});
+        f_ref = std::make_shared<ov::Model>(OutputVector{res_ti_Y, res_ti_H, res_ti_C}, ParameterVector{X, Y, Z});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -156,7 +171,7 @@ TEST(TransformationTests, ConvertLSTMSequenceToTensorIteratorDynamic) {
         Ho->set_friendly_name("Ho");
         Co->set_friendly_name("Co");
 
-        f = std::make_shared<ov::Model>(NodeVector{Y_out, Ho, Co}, ParameterVector{X, Y, Z});
+        f = std::make_shared<ov::Model>(OutputVector{Y_out, Ho, Co}, ParameterVector{X, Y, Z});
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -225,7 +240,7 @@ TEST(TransformationTests, ConvertLSTMSequenceToTensorIteratorDynamic) {
         res_ti_H->set_friendly_name("Ho");
         res_ti_C->set_friendly_name("Co");
 
-        f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_Y, res_ti_H, res_ti_C}, ParameterVector{X, Y, Z});
+        f_ref = std::make_shared<ov::Model>(OutputVector{res_ti_Y, res_ti_H, res_ti_C}, ParameterVector{X, Y, Z});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -266,7 +281,7 @@ TEST(TransformationTests, ConvertQuantizedLSTMSequenceToTensorIterator) {
         Ho->set_friendly_name("Ho");
         Co->set_friendly_name("Co");
 
-        f = std::make_shared<Model>(NodeVector{Y, Ho, Co}, ParameterVector{X});
+        f = std::make_shared<Model>(OutputVector{Y, Ho, Co}, ParameterVector{X});
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -337,7 +352,7 @@ TEST(TransformationTests, ConvertQuantizedLSTMSequenceToTensorIterator) {
         res_ti_Y->set_friendly_name("Y_out");
         res_ti_H->set_friendly_name("Ho");
         res_ti_C->set_friendly_name("Co");
-        f_ref = std::make_shared<Model>(NodeVector{res_ti_Y, res_ti_H, res_ti_C}, ParameterVector{X});
+        f_ref = std::make_shared<Model>(OutputVector{res_ti_Y, res_ti_H, res_ti_C}, ParameterVector{X});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -371,7 +386,7 @@ TEST(TransformationTests, ConvertRNNSequenceToTensorIterator) {
         Y_out->set_friendly_name("Y_out");
         Ho->set_friendly_name("Ho");
 
-        f = std::make_shared<ov::Model>(NodeVector{Y_out, Ho}, ParameterVector{X, Y});
+        f = std::make_shared<ov::Model>(OutputVector{Y_out, Ho}, ParameterVector{X, Y});
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -426,7 +441,7 @@ TEST(TransformationTests, ConvertRNNSequenceToTensorIterator) {
         res_ti_Y->set_friendly_name("Y_out");
         res_ti_H->set_friendly_name("Ho");
 
-        f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_Y, res_ti_H}, ParameterVector{X, Y});
+        f_ref = std::make_shared<ov::Model>(OutputVector{res_ti_Y, res_ti_H}, ParameterVector{X, Y});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -460,7 +475,7 @@ TEST(TransformationTests, ConvertRNNSequenceToTensorIteratorDynamic) {
         Y_out->set_friendly_name("Y_out");
         Ho->set_friendly_name("Ho");
 
-        f = std::make_shared<ov::Model>(NodeVector{Y_out, Ho}, ParameterVector{X, Y});
+        f = std::make_shared<ov::Model>(OutputVector{Y_out, Ho}, ParameterVector{X, Y});
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -514,7 +529,7 @@ TEST(TransformationTests, ConvertRNNSequenceToTensorIteratorDynamic) {
         res_ti_Y->set_friendly_name("Y_out");
         res_ti_H->set_friendly_name("Ho");
 
-        f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_Y, res_ti_H}, ParameterVector{X, Y});
+        f_ref = std::make_shared<ov::Model>(OutputVector{res_ti_Y, res_ti_H}, ParameterVector{X, Y});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -548,7 +563,7 @@ TEST(TransformationTests, ConvertGRUSequenceToTensorIterator) {
         Y_out->set_friendly_name("Y_out");
         Ho->set_friendly_name("Ho");
 
-        f = std::make_shared<ov::Model>(NodeVector{Y_out, Ho}, ParameterVector{X, Y});
+        f = std::make_shared<ov::Model>(OutputVector{Y_out, Ho}, ParameterVector{X, Y});
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -603,7 +618,7 @@ TEST(TransformationTests, ConvertGRUSequenceToTensorIterator) {
         res_ti_Y->set_friendly_name("Y_out");
         res_ti_H->set_friendly_name("Ho");
 
-        f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_Y, res_ti_H}, ParameterVector{X, Y});
+        f_ref = std::make_shared<ov::Model>(OutputVector{res_ti_Y, res_ti_H}, ParameterVector{X, Y});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -637,7 +652,7 @@ TEST(TransformationTests, ConvertGRUSequenceToTensorIteratorDynamic) {
         Y_out->set_friendly_name("Y_out");
         Ho->set_friendly_name("Ho");
 
-        f = std::make_shared<ov::Model>(NodeVector{Y_out, Ho}, ParameterVector{X, Y});
+        f = std::make_shared<ov::Model>(OutputVector{Y_out, Ho}, ParameterVector{X, Y});
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -692,7 +707,7 @@ TEST(TransformationTests, ConvertGRUSequenceToTensorIteratorDynamic) {
         res_ti_Y->set_friendly_name("Y_out");
         res_ti_H->set_friendly_name("Ho");
 
-        f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_Y, res_ti_H}, ParameterVector{X, Y});
+        f_ref = std::make_shared<ov::Model>(OutputVector{res_ti_Y, res_ti_H}, ParameterVector{X, Y});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -730,7 +745,7 @@ TEST(TransformationTests, ConvertQuantizedGRUSequenceToTensorIterator) {
         Y->set_friendly_name("Y_out");
         Ho->set_friendly_name("Ho");
 
-        f = std::make_shared<Model>(NodeVector{Y, Ho}, ParameterVector{X});
+        f = std::make_shared<Model>(OutputVector{Y, Ho}, ParameterVector{X});
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -792,7 +807,7 @@ TEST(TransformationTests, ConvertQuantizedGRUSequenceToTensorIterator) {
         res_ti_Y->set_friendly_name("Y_out");
         res_ti_H->set_friendly_name("Ho");
 
-        f_ref = std::make_shared<Model>(NodeVector{res_ti_Y, res_ti_H}, ParameterVector{X});
+        f_ref = std::make_shared<Model>(OutputVector{res_ti_Y, res_ti_H}, ParameterVector{X});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -800,26 +815,24 @@ TEST(TransformationTests, ConvertQuantizedGRUSequenceToTensorIterator) {
 }
 
 TEST(TransformationTests, convert_lstm_seq_to_ti_with_enabled_mask) {
-    auto param_x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, -1});
-    auto param_init_cell_state =
-        std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 1, 256});
-    auto param_hidden_cell_state =
-        std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 1, 256});
-    auto param_seq_len = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
-    auto param_w = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1024, 40});
-    auto param_r = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1024, 256});
-    auto param_b = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1024});
+    auto param_x = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, -1});
+    auto param_init_cell_state = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 1, 256});
+    auto param_hidden_cell_state = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 1, 256});
+    auto param_seq_len = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
+    auto param_w = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1024, 40});
+    auto param_r = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1024, 256});
+    auto param_b = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1024});
     std::int64_t hidden_size = 256;
-    ov::op::v5::LSTMSequence::direction lstm_direction = ov::op::v5::LSTMSequence::direction::FORWARD;
-    auto lstm_cell = std::make_shared<ov::op::v5::LSTMSequence>(param_x,
-                                                                param_init_cell_state,
-                                                                param_hidden_cell_state,
-                                                                param_seq_len,
-                                                                param_w,
-                                                                param_r,
-                                                                param_b,
-                                                                hidden_size,
-                                                                lstm_direction);
+    v5::LSTMSequence::direction lstm_direction = v5::LSTMSequence::direction::FORWARD;
+    auto lstm_cell = std::make_shared<v5::LSTMSequence>(param_x,
+                                                        param_init_cell_state,
+                                                        param_hidden_cell_state,
+                                                        param_seq_len,
+                                                        param_w,
+                                                        param_r,
+                                                        param_b,
+                                                        hidden_size,
+                                                        lstm_direction);
     auto model = std::make_shared<ov::Model>(lstm_cell->outputs(),
                                              ov::ParameterVector{param_x,
                                                                  param_init_cell_state,
@@ -867,7 +880,7 @@ TEST(TransformationTests, ConvertLSTMSequenceWithDynSeqLenToTensorIterator) {
         Ho->set_friendly_name("Ho");
         Co->set_friendly_name("Co");
 
-        f = std::make_shared<ov::Model>(NodeVector{Y_out, Ho, Co}, ParameterVector{X, Y, Z});
+        f = std::make_shared<ov::Model>(OutputVector{Y_out, Ho, Co}, ParameterVector{X, Y, Z});
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -938,7 +951,7 @@ TEST(TransformationTests, ConvertLSTMSequenceWithDynSeqLenToTensorIterator) {
         res_ti_Y->set_friendly_name("Y_out");
         res_ti_H->set_friendly_name("Ho");
         res_ti_C->set_friendly_name("Co");
-        f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_Y, res_ti_H, res_ti_C}, ParameterVector{X, Y, Z});
+        f_ref = std::make_shared<ov::Model>(OutputVector{res_ti_Y, res_ti_H, res_ti_C}, ParameterVector{X, Y, Z});
     }
 
     auto res = compare_functions(f, f_ref);

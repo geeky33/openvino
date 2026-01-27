@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -14,14 +14,13 @@ class TestSetItem(PytorchLayerTest):
 
     def create_model(self, idx):
         import torch
-        from typing import List
 
         class aten_set_item(torch.nn.Module):
             def __init__(self, idx):
                 super(aten_set_item, self).__init__()
                 self.idx = idx
 
-            def forward(self, x: List[int]):
+            def forward(self, x: list[int]):
                 x[self.idx] = 0
                 return torch.tensor(x).to(torch.int)
 

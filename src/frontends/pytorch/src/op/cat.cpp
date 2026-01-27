@@ -1,7 +1,8 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert_like.hpp"
@@ -42,23 +43,54 @@ OutputVector translate_cat_common(const NodeContext& context,
         list_elems.size() > 1 || !ov::as_type_ptr<v0::Parameter>(first_node),
         "<aten/quantized>::cat is located inside body while inputs are located outside of the body. "
         "This case is not supported.");
-    if (list_elems.size() == 1 &&
-        !ov::as_type_ptr<op::util::FrameworkNode>(context.get_input(0).get_node_shared_ptr()) && !is_fx) {
+
+    if (list_elems.size() == 1 && !is_fx) {
         // Case when list was merged into tensor. // This case doesn't work with torchfx
         auto tensor = list_elems[0];
-        auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(tensor, element::i32));
-        auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
-        auto neg_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
-        auto axis_const = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {axis}));
-        auto one = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
-        auto int_max =
-            context.mark_node(v0::Constant::create(element::i32, Shape{1}, {std::numeric_limits<int32_t>().max()}));
-        auto shape_sliced = context.mark_node(std::make_shared<v8::Slice>(shape, one, int_max, one));
-        auto new_shape =
-            context.mark_node(std::make_shared<v12::ScatterElementsUpdate>(shape_sliced, axis_const, neg_1, zero));
-        return {context.mark_node(std::make_shared<v1::Reshape>(tensor, new_shape, false))};
+
+        auto complex = as_type_ptr<ComplexTypeMark>(tensor.get_node_shared_ptr());
+        bool is_complex = complex != nullptr;
+
+        if (is_complex) {
+            return {tensor};
+        } else if (!ov::as_type_ptr<op::util::FrameworkNode>(context.get_input(0).get_node_shared_ptr())) {
+            auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(tensor, element::i32));
+            auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+            auto neg_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
+            auto axis_const = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {axis}));
+            auto one = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
+            auto int_max =
+                context.mark_node(v0::Constant::create(element::i32, Shape{1}, {std::numeric_limits<int32_t>().max()}));
+            auto shape_sliced = context.mark_node(std::make_shared<v8::Slice>(shape, one, int_max, one));
+            auto new_shape =
+                context.mark_node(std::make_shared<v12::ScatterElementsUpdate>(shape_sliced, axis_const, neg_1, zero));
+
+            auto result = context.mark_node(std::make_shared<v1::Reshape>(tensor, new_shape, false));
+            return {result};
+        }
     }
 
+    // Resolve complex types
+    OutputVector inputs_vec;
+    bool is_complex =
+        std::any_of(std::next(list_elems.begin()), list_elems.end(), [](const ov::Output<ov::Node>& input) {
+            return ov::as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr()) != nullptr;
+        });
+
+    if (is_complex) {
+        // axis that couts from end, needs to be increased by 1 dimension
+        if (axis < 0)
+            axis -= 1;
+        for (const auto& elem : list_elems) {
+            // Remove complex type marks
+            auto elem_node = elem.get_node_shared_ptr();
+            PYTORCH_OP_CONVERSION_CHECK(as_type_ptr<ComplexTypeMark>(elem_node),
+                                        "Mixing complex and non-complex is not supported in aten::cat.");
+            inputs_vec.push_back(elem_node->get_input_source_output(0));
+        }
+    } else {
+        inputs_vec = OutputVector(list_elems.begin(), list_elems.end());
+    }
     const auto first_in_type = list_elems.front().get_element_type();
     const bool is_mixed_type =
         list_elems.size() > 1 && (std::any_of(std::next(list_elems.begin()),
@@ -67,11 +99,10 @@ OutputVector translate_cat_common(const NodeContext& context,
                                                   return input.get_element_type() != first_in_type ||
                                                          input.get_element_type() == ov::element::dynamic;
                                               }));
-    auto inputs_vec = OutputVector(list_elems.begin(), list_elems.end());
     if (is_mixed_type) {
         auto node_of_type = inputs_vec[0];
         for (size_t i = 1; i < inputs_vec.size(); ++i) {
-            auto cpt = context.mark_node(std::make_shared<v14::ConvertPromoteTypes>(node_of_type, list_elems[i], true));
+            auto cpt = context.mark_node(std::make_shared<v14::ConvertPromoteTypes>(node_of_type, inputs_vec[i], true));
             node_of_type = cpt->output(0);
             inputs_vec[i] = cpt->output(1);
         }
@@ -81,14 +112,15 @@ OutputVector translate_cat_common(const NodeContext& context,
         for (size_t i = 1; i < inputs_vec.size(); ++i) {
             if (inputs_vec[i].get_element_type() != unified_type ||
                 inputs_vec[i].get_element_type() == ov::element::dynamic) {
-                inputs_vec[i] = context.mark_node(std::make_shared<v1::ConvertLike>(list_elems[i], node_of_type));
+                inputs_vec[i] = context.mark_node(std::make_shared<v1::ConvertLike>(inputs_vec[i], node_of_type));
             }
         }
-        auto concat = std::make_shared<v0::Concat>(inputs_vec, axis);
-        return {context.mark_node(concat)};
     }
-
-    return {context.mark_node(std::make_shared<v0::Concat>(inputs_vec, axis))};
+    auto concat = context.mark_node(std::make_shared<v0::Concat>(inputs_vec, axis));
+    if (is_complex) {
+        concat = context.mark_node(std::make_shared<ComplexTypeMark>(concat));
+    }
+    return {concat};
 }
 
 OutputVector translate_cat(const NodeContext& context) {
@@ -127,27 +159,26 @@ OutputVector translate_quantized_cat(const NodeContext& context) {
 
 OutputVector translate_stack_fx(const NodeContext& context) {
     num_inputs_check(context, 1, context.get_input_size());
-    auto dim = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
     int64_t axis = 0;
-
     std::deque<Output<Node>> list_elems;
     auto num_elements = context.get_input_size();
 
     if (!context.get_input_type(num_elements - 1).is<type::List>()) {
         axis = context.const_input<int64_t>(num_elements - 1);
-        dim = context.mark_node(v0::Constant::create(element::i32, Shape{}, {axis}));
-        num_elements -= 1;
     }
 
-    OutputVector stack_inputs;
-    for (size_t i = 0; i < num_elements; i++) {
-        stack_inputs.push_back(context.get_input(static_cast<int>(i)));
-    }
+    auto dim = context.mark_node(v0::Constant::create(element::i32, Shape{}, {axis}));
+
+    list_elems = get_list_as_outputs(context.get_input(0));
+
+    OutputVector stack_inputs(list_elems.begin(), list_elems.end());
 
     // returns the u4 constant if the stack operation is a part of the decompression pattern
     if (const auto& u4_const = u4_compression_stack(stack_inputs, axis))
         return {u4_const};
 
+    num_elements = list_elems.size();
+    list_elems.clear();
     for (size_t i = 0; i < num_elements; i++) {
         auto stack_input = context.mark_node(std::make_shared<v0::Unsqueeze>(stack_inputs[i], dim));
         list_elems.push_back(stack_input);

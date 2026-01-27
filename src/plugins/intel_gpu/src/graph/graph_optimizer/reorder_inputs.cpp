@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,10 @@
 #include "intel_gpu/runtime/utils.hpp"
 #include "program_helpers.h"
 #include "to_string_utils.h"
+#include "eltwise_inst.h"
 #include "pooling_inst.h"
 #include "fully_connected_inst.h"
+#include "mvn_inst.h"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "gemm_inst.h"
@@ -411,6 +413,19 @@ static bool is_weights_dependency(program_node* predecessor, program_node* succe
     return is_weights_dep;
 }
 
+static bool need_align_shape_for_numpy_broadcast(program_node* predecessor, program_node* successor, format output_format) {
+    if (successor->is_type<eltwise>()) {
+        auto& elt_suc = successor->as<eltwise>();
+        if (elt_suc.need_align_for_numpy_broadcast(predecessor->get_output_layout())) {
+            GPU_DEBUG_TRACE_DETAIL << " Skip add reorder in reorder_in_dir for numpy broadcast " << successor->id()
+                                    << output_format.to_string() << std::endl;
+            return true;
+        }
+    }
+
+    return false;
+}
+
 // If there is layout mismatch between two layers, add reorder
 template <direction_e dir>
 void insert_reorders_in_dir(program& p, const std::map<program_node*, format::type>& fmt_map, reorder_factory& rf, layout_optimizer& lo, program_node* node) {
@@ -435,6 +450,9 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
         in_layout.format = get_target_output_format(lo, fmt_map, predecessor, successor);
         out_layout.format = get_target_input_format(lo, fmt_map, successor, predecessor);
         if (in_layout.format == out_layout.format)
+            continue;
+
+        if (need_align_shape_for_numpy_broadcast(predecessor, successor, out_layout.format))
             continue;
 
         GPU_DEBUG_LOG << dir_msg(dir) << "  " << node->id() << " --> " << get_node(next)->id() << " ## "
@@ -494,6 +512,8 @@ void insert_reorders(program& p, const std::map<program_node*, format::type>& fm
 }  // namespace
 
 void reorder_inputs::run(program& p, reorder_factory& rf) {
+    p.mark_if_gemm_data_flow();
+
     auto& lo = p.get_layout_optimizer();
 
     auto fmt_map = get_preferred_formats(p, lo);
@@ -740,6 +760,42 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
         }
     };
 
+    // MVN requires input data to be aligned for blocked format opt kernels.
+    // Otherwise need to use bfyx opt kernel for such cases to avoid incorrect results.
+    const auto reorder_input_mvn = [&p, &rf](typed_program_node<mvn>& mvn_node) {
+        auto& input = mvn_node.input();
+        auto input_layout = input.get_output_layout();
+        auto input_pshape = input_layout.get_partial_shape();
+        auto prim = mvn_node.get_primitive();
+
+        if (!cldnn::format::is_default_format(input_layout.format) && prim->requires_alignment(input_pshape)) {
+            auto block_sizes = format::block_sizes(input_layout.format);
+            auto axes = prim->reduction_axes;
+            if (input_layout.is_dynamic() || block_sizes.size() > 1
+                || (block_sizes.size() == 1 &&
+                    input_pshape[block_sizes[0].first].get_length() % block_sizes[0].second != 0 &&
+                    std::count(axes.begin(), axes.end(), block_sizes[0].first) == 0)) {
+                auto output_layout = mvn_node.get_output_layout();
+                auto rank = input_pshape.size();
+                auto new_layout = input_layout;
+                new_layout.format = format::get_default_format(rank);
+                auto new_input = rf.get_reorder(input.id(), input_layout, new_layout);
+                if (new_input.first) {
+                    p.add_intermediate(new_input.first, mvn_node, 0, !new_input.second);
+                    mvn_node.recalc_output_layout(false);
+                }
+                auto mvn_output_layout = mvn_node.get_output_layout();
+                if (!mvn_output_layout.identical(output_layout)) {
+                    auto reorder_back = rf.get_reorder(mvn_node.id(), mvn_output_layout, output_layout);
+                    if (reorder_back.first) {
+                        const auto& users = mvn_node.get_users();
+                        auto first_user = users.front();
+                        p.add_intermediate(reorder_back.first, *first_user, 0, !reorder_back.second, true);
+                    }
+                }
+            }
+        }
+    };
 #ifdef ENABLE_ONEDNN_FOR_GPU
     const auto reorder_input_gemm = [&p, &rf](typed_program_node<gemm>& gemm_node) {
         if (gemm_node.get_preferred_impl_type() != impl_types::onednn || gemm_node.is_dynamic()
@@ -775,13 +831,14 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
 #endif // ENABLE_ONEDNN_FOR_GPU
 
     for (auto& prim : p.get_processing_order()) {
-        program_helpers::do_for_types<detection_output, deconvolution, convolution, fully_connected, pooling>(
+        program_helpers::do_for_types<detection_output, deconvolution, convolution, fully_connected, pooling, mvn>(
             *prim,
             reorder_input_detection_output,
             reorder_input_and_weights_deconvolution,
             reorder_convolution,
             reorder_input_fully_connected,
-            reorder_input_pooling);
+            reorder_input_pooling,
+            reorder_input_mvn);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
         program_helpers::do_for_types<gemm>(
@@ -808,7 +865,7 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
 
                 auto activation_desc = fused_desc.typed_desc<activation>();
                 if (activation_desc->activation_function == cldnn::activation_func::relu_negative_slope &&
-                    !activation_desc->additional_params_input.empty()) {
+                    activation_desc->additional_params_input.is_valid()) {
                     const auto expected_dt = data_types::f32;
                     const auto dep_idx = fused_desc.outer_dep_start_idx;
                     const auto orig_layout = node->get_dependency(dep_idx).get_output_layout();
@@ -845,13 +902,8 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
                     if (gemm_layout.is_dynamic() || data_layout.is_dynamic())
                         continue;
 
-                    auto gemm_dims = onednn::convert_gemm_tensor(gemm_layout.get_tensor(),
-                                                                 cldnn::format::dimension(gemm_layout.format),
-                                                                 false);
-
-                    auto data_dims = onednn::convert_gemm_tensor(data_layout.get_tensor(),
-                                                                 cldnn::format::dimension(data_layout.format),
-                                                                 false);
+                    auto gemm_dims = onednn::convert_tensor(gemm_layout.get_tensor(), cldnn::format::dimension(gemm_layout.format));
+                    auto data_dims = onednn::convert_tensor(data_layout.get_tensor(), cldnn::format::dimension(data_layout.format));
 
                     if (gemm_dims[0] == data_dims[0])
                         continue;
@@ -863,51 +915,6 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
                     static size_t idx = 0;
                     const auto prim_id = "broadcast:" + data.id() + "_broadcasted" + std::to_string(idx++);
                     auto broadcast_prim = std::make_shared<cldnn::broadcast>(prim_id, cldnn::input_info(data.id()), gemm_layout.get_shape(),
-                                                                            ov::AxisSet{}, ov::op::BroadcastType::NUMPY);
-
-                    auto& broadcast_node = p.get_or_create(broadcast_prim);
-                    p.add_intermediate(broadcast_node, *node, fused_prim.outer_dep_start_idx, true);
-                    broadcast_node.recalc_output_layouts(false);
-                }
-            }
-        } else if (node->is_type<fully_connected>() && node->get_preferred_impl_type() == impl_types::onednn) {
-            for (const auto& fused_prim : node->get_fused_primitives()) {
-                if (fused_prim.is_type<eltwise>() &&
-                    one_of(fused_prim.typed_desc<eltwise>()->mode, {eltwise_mode::sum, eltwise_mode::sub, eltwise_mode::prod})) {
-                    auto fc_layout = node->get_output_layout();
-                    auto& data = node->get_dependency(fused_prim.outer_dep_start_idx);
-                    auto data_layout = data.get_output_layout();
-
-                    if (fc_layout.is_dynamic() || data_layout.is_dynamic())
-                        continue;
-
-                    // fc_b     | fc_f      | data_b    | data_f    | broadcast condition
-                    // ---------+-----------+-----------+-----------+--------------------
-                    // 1        | 1         | 1         | 1         | no broadcast
-                    // 1        | 1         | 1         | N         | N/A
-                    // 1        | 1         | N         | 1         | N/A
-                    // 1        | 1         | N         | N         | N/A
-                    // 1        | N         | 1         | 1         | implicit broadcast
-                    // 1        | N         | 1         | N         | no broadcast
-                    // 1        | N         | N         | 1         | N/A
-                    // 1        | N         | N         | N         | N/A
-                    // N        | 1         | 1         | 1         | implicit broadcast
-                    // N        | 1         | 1         | N         | N/A
-                    // N        | 1         | N         | 1         | no broadcast
-                    // N        | 1         | N         | N         | N/A
-                    // N        | N         | 1         | 1         | implicit broadcast
-                    // N        | N         | 1         | N         | explicit broadcast
-                    // N        | N         | N         | 1         | explicit broadcast
-                    // N        | N         | N         | N         | no broadcast
-                    if ((fc_layout.batch() == 1 || fc_layout.feature() == 1) ||
-                        (data_layout.batch() == 1 && data_layout.feature() == 1) ||
-                        (fc_layout.count() == data_layout.count())) {
-                        continue;
-                    }
-
-                    static size_t idx = 0;
-                    const auto prim_id = "broadcast:" + data.id() + "_broadcasted" + std::to_string(idx++);
-                    auto broadcast_prim = std::make_shared<cldnn::broadcast>(prim_id, cldnn::input_info(data.id()), fc_layout.get_shape(),
                                                                             ov::AxisSet{}, ov::op::BroadcastType::NUMPY);
 
                     auto& broadcast_node = p.get_or_create(broadcast_prim);

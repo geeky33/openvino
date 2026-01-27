@@ -1,9 +1,13 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <deque>
+#include <string>
+
+#include "utils/debug_caps_config.h"
 #ifdef CPU_DEBUG_CAPS
 #    include "compiled_model.h"
 #    include "weights_cache.hpp"

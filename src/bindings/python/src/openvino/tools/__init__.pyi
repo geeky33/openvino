@@ -1,4 +1,4 @@
 # type: ignore
-from __future__ import annotations
 from . import ovc
-__all__ = ['ovc']
+from __future__ import annotations
+__all__: list[str] = ['ovc']

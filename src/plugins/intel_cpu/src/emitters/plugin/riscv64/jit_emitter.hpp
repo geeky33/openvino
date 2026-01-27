@@ -1,22 +1,25 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "node.h"
+#include <cstdint>
+#include <set>
 
+#include "emitters/utils.hpp"
+#include "node.h"
 #include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
 #include "nodes/kernels/riscv64/jit_generator.hpp"
-#include "emitters/utils.hpp"
 #include "snippets/generator.hpp"
-#include "snippets/snippets_isa.hpp"
 
-#include <set>
+#ifdef SNIPPETS_DEBUG_CAPS
+#    include "emitters/snippets/riscv64/verbose.hpp"
+#endif
 
 namespace ov::intel_cpu::riscv64 {
 
-enum emitter_in_out_map {
+enum emitter_in_out_map : uint8_t {
     vec_to_vec,
     vec_to_gpr,
     gpr_to_vec,
@@ -25,7 +28,7 @@ enum emitter_in_out_map {
 
 class jit_emitter : public ov::snippets::Emitter {
 public:
-    jit_emitter(ov::intel_cpu::riscv64::jit_generator* host,
+    jit_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                 ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                 ov::element::Type exec_prc = ov::element::f32,
                 emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec);
@@ -56,6 +59,15 @@ public:
     static std::set<std::vector<element::Type>> get_supported_precisions(
         const std::shared_ptr<ov::Node>& node = nullptr);
 
+#ifdef SNIPPETS_DEBUG_CAPS
+    const char* info() const {
+        if (!info_.is_initialized()) {
+            info_.init(this);
+        }
+        return info_.c_str();
+    }
+#endif
+
     // TODO: RV64 supports vector multiplier.
     // However, currently not all JIT emitter support LMUL > 1:
     //   - if aux_vec registers are needed - preamble/postamble support only m1.
@@ -66,15 +78,23 @@ public:
     }
 
 protected:
-    size_t get_max_gpr_count() const { return 32; }
-    size_t get_max_fp_gpr_count() const { return 32; }
-    size_t get_max_vecs_count() const { return 32; }
+    static size_t get_max_gpr_count() {
+        return 32;
+    }
+    static size_t get_max_fp_gpr_count() {
+        return 32;
+    }
+    static size_t get_max_vecs_count() {
+        return 32;
+    }
 
     size_t get_gpr_length() const;
     size_t get_fp_gpr_length() const;
     size_t get_vec_length() const;
 
-    Xbyak_riscv::VReg mask_vreg() const { return Xbyak_riscv::v0; }
+    static Xbyak_riscv::VReg mask_vreg() {
+        return Xbyak_riscv::v0;
+    }
 
     void emit_code_impl(const std::vector<size_t>& in_idxs,
                         const std::vector<size_t>& out_idxs,
@@ -114,7 +134,8 @@ protected:
                         const std::vector<size_t>& exclude_fp_gpr_regs,
                         const std::vector<size_t>& exclude_vec_regs) const;
 
-    virtual void validate_arguments(const std::vector<size_t>&, const std::vector<size_t>&) const {}
+    virtual void validate_arguments([[maybe_unused]] const std::vector<size_t>& in,
+                                    [[maybe_unused]] const std::vector<size_t>& out) const {}
 
     // we accept only 32bit hexadecimal table values to avoid any rounding
     using table_entry_val_t = uint32_t;
@@ -134,9 +155,9 @@ protected:
     }
 
     void push_entries_of(const table_t& t) {
-        for (auto it = t.begin(); it != t.end(); it++) {
-            auto key = (*it).first;
-            auto te = (*it).second;  // copy values from table
+        for (const auto& it : t) {
+            auto key = it.first;
+            auto te = it.second;  // copy values from table
             push_arg_entry_of(key, te);
         }
     }
@@ -150,24 +171,27 @@ protected:
         h->uni_li(p_table, address);
     }
 
-    inline void load_table_val(const std::string& key, const Xbyak_riscv::FReg& freg, size_t key_off_val_shift = 0) const {
+    void load_table_val(const std::string& key, const Xbyak_riscv::FReg& freg, size_t key_off_val_shift = 0) const {
         auto off = table_off(key, key_off_val_shift);
         h->flw(freg, p_table, off);
     }
 
-    inline void load_table_val(const std::string& key, const Xbyak_riscv::Reg& reg, size_t key_off_val_shift = 0) const {
+    void load_table_val(const std::string& key, const Xbyak_riscv::Reg& reg, size_t key_off_val_shift = 0) const {
         auto off = table_off(key, key_off_val_shift);
         h->lw(reg, p_table, off);
     }
 
     // Load scalar to vector with broadcast
-    inline void load_table_val(const std::string& key, const Xbyak_riscv::VReg& vreg, const Xbyak_riscv::Reg& tmp, size_t key_off_val_shift = 0) const {
+    void load_table_val(const std::string& key,
+                        const Xbyak_riscv::VReg& vreg,
+                        const Xbyak_riscv::Reg& tmp,
+                        size_t key_off_val_shift = 0) const {
         auto off = table_off(key, key_off_val_shift);
         h->lw(tmp, p_table, off);
         h->vmv_v_x(vreg, tmp);
     }
 
-    ov::intel_cpu::riscv64::jit_generator* h;
+    ov::intel_cpu::riscv64::jit_generator_t* h;
     ov::intel_cpu::riscv64::cpu_isa_t host_isa_;
     ov::element::Type exec_prc_;
 
@@ -185,6 +209,10 @@ private:
     mutable std::vector<size_t> preserved_gpr_idxs;
     mutable std::vector<size_t> preserved_fp_gpr_idxs;
 
+#ifdef SNIPPETS_DEBUG_CAPS
+    friend class jit_debug_emitter;
+#endif
+
     // In the standard RISC-V calling convention, the stack pointer is always kept 16-byte aligned
     const size_t sp_aligment = 16;
     // integer gpr byte size
@@ -193,6 +221,10 @@ private:
     const size_t flen = Xbyak_riscv::CPU().getFlen() / 8;
     // vector register byte size
     const size_t vlen = Xbyak_riscv::CPU().getVlen() / 8;
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    mutable jit_emitter_info_t info_;
+#endif
 
     size_t table_off(const std::string& key, size_t key_off_val_shift = 0) const {
         const auto it = entry_map_.find(key);  // search an entry for a key
@@ -203,4 +235,4 @@ private:
     }
 };
 
-}  // ov::intel_cpu::riscv64
+}  // namespace ov::intel_cpu::riscv64

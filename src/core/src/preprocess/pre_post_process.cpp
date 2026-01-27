@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,14 +45,13 @@ struct RTInfoCache {
 
     void store(const std::shared_ptr<ov::Model>& model) {
         traverse(model, [this](const std::shared_ptr<ov::Node>& op) {
-            m_rt_info_cache[op.get()] = op->get_rt_info();
+            m_rt_info_cache[CacheKey{op}] = op->get_rt_info();
         });
     }
 
     void restore(const std::shared_ptr<ov::Model>& model) {
         traverse(model, [this](const std::shared_ptr<ov::Node>& op) {
-            auto it = m_rt_info_cache.find(op.get());
-            if (it != m_rt_info_cache.end()) {
+            if (const auto it = m_rt_info_cache.find(CacheKey{op}); it != m_rt_info_cache.end()) {
                 op->get_rt_info() = it->second;
             } else {
                 ov::pass::enable_constant_folding(op);
@@ -62,7 +61,25 @@ struct RTInfoCache {
         });
     }
 
-    std::unordered_map<ov::Node*, ov::RTMap> m_rt_info_cache;
+private:
+    struct CacheKey {
+        explicit CacheKey(const std::shared_ptr<ov::Node>& n) : hash_value{std::hash<ov::Node*>{}(n.get())}, node{n} {}
+        struct Hash {
+            size_t operator()(const CacheKey& k) const {
+                return k.hash_value;
+            }
+        };
+        struct Equal {
+            bool operator()(const CacheKey& lhs, const CacheKey& rhs) const {
+                return !lhs.node.owner_before(rhs.node) && !rhs.node.owner_before(lhs.node);
+            }
+        };
+
+    private:
+        size_t hash_value{0};
+        std::weak_ptr<ov::Node> node;
+    };
+    std::unordered_map<CacheKey, ov::RTMap, CacheKey::Hash, CacheKey::Equal> m_rt_info_cache;
 };
 
 void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
@@ -81,7 +98,11 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
     REGISTER_PASS(manager, SharedOpOptimization)
 
     // 1. Set "disable_const_folding" attribute
-    REGISTER_PASS(manager, MarkDequantization, TypeVector{i8, u8, i4, u4, nf4, f4e2m1, f8e4m3, f8e5m2, f8e8m0});
+    // we have to add a call into the PrePostProcessing, it runs before compile_model call
+    REGISTER_PASS(manager, MarkGatherSubgraph, element::TypeVector{element::f8e4m3}, element::TypeVector{element::u4});
+    REGISTER_PASS(manager,
+                  MarkDequantization,
+                  TypeVector{i32, u32, i16, u16, i8, u8, u6, i4, u4, u3, u2, u1, nf4, f4e2m1, f8e4m3, f8e5m2, f8e8m0});
     REGISTER_PASS(manager, DisableShapeOfConstantFolding, false);
     REGISTER_PASS(manager, DisableRandomUniformConstantFolding)
     // Mark quantized and f16/bf16 compressed constants to prevent CF for them,

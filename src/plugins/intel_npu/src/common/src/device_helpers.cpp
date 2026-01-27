@@ -1,10 +1,12 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "intel_npu/common/device_helpers.hpp"
 
 #include "openvino/core/except.hpp"
+
+namespace intel_npu {
 
 bool utils::isNPUDevice(const uint32_t deviceId) {
     // bits 26-24 define interface type
@@ -52,3 +54,5 @@ std::string utils::getCompilationPlatform(const std::string_view platform,
 
     return utils::getPlatformByDeviceName(availableDevicesNames.at(0));
 }
+
+}  // namespace intel_npu

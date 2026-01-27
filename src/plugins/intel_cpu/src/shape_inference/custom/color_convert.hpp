@@ -1,11 +1,17 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <node.h>
-
+#include <cstddef>
+#include <functional>
+#include <memory>
+#include <unordered_map>
 #include <utility>
+#include <vector>
 
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "openvino/core/node.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 
 #pragma once
@@ -14,13 +20,13 @@ namespace ov::intel_cpu::node {
 using Result = IShapeInfer::Result;
 
 /**
- * Implements Color Convert shape inference algorithm. Depending on wether it has only single plain H dimension is
+ * Implements Color Convert shape inference algorithm. Depending on whether it has only single plain H dimension is
  * passed through or recalculated as 2/3 of the initial size.
  *
  */
 class ColorConvertShapeInfer : public ShapeInferEmptyPads {
 public:
-    ColorConvertShapeInfer(bool singlePlain) : m_singlePlain(singlePlain) {}
+    explicit ColorConvertShapeInfer(bool singlePlain) : m_singlePlain(singlePlain) {}
     Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
     [[nodiscard]] port_mask_t get_port_mask() const override {
@@ -33,7 +39,7 @@ private:
 
 class ColorConvertShapeInferFactory : public ShapeInferFactory {
 public:
-    ColorConvertShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
+    explicit ColorConvertShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
     [[nodiscard]] ShapeInferPtr makeShapeInfer() const override;
 
 private:

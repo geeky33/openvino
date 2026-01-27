@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -20,10 +20,6 @@ if(OV_COMPILER_IS_INTEL_LLVM)
         ov_add_compiler_flags(/WX)
         ov_add_compiler_flags(/Wno-ignored-attributes)
     endif()
-endif()
-
-if((CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG) AND CMAKE_CXX_STANDARD GREATER_EQUAL 20)
-    set(CMAKE_CXX_FLAGS "-Wno-error=deprecated ${CMAKE_CXX_FLAGS}")
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX)
@@ -89,6 +85,8 @@ if(CMAKE_COMPILER_IS_GNUCXX)
   set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS_RELEASE "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized -Wno-stringop-overflow"
                                                   LINK_FLAGS_RELWITHDEBINFO "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized -Wno-stringop-overflow")
 endif()
+
+ov_build_target_faster(${TARGET_NAME} PCH)
 
 if(ENABLE_TESTS)
   add_subdirectory(tests)

@@ -1,7 +1,6 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import List
 
 import numpy as np
 import pytest
@@ -69,7 +68,7 @@ class TestListUnpack(PytorchLayerTest):
                 super(prim_listunpack, self).__init__()
 
             def forward(self, in1, in2, in3, in4):
-                items: List[List[int]] = []
+                items: list[list[int]] = []
                 items.append(in1.size())
                 items.append(in2.size())
                 items.append(in3.size())
@@ -238,11 +237,10 @@ class TestListUnpackParameterSingle(PytorchLayerTest):
 
     def create_model(self):
         import torch
-        from typing import List
 
         class model(torch.nn.Module):
 
-            def forward(self, x: List[torch.Tensor]):
+            def forward(self, x: list[torch.Tensor]):
                 x1, x2 = x
                 return x1, x2
 
@@ -265,11 +263,10 @@ class TestListUnpackParameterSingleMixed(PytorchLayerTest):
 
     def create_model(self):
         import torch
-        from typing import List
 
         class model(torch.nn.Module):
 
-            def forward(self, y1, x: List[torch.Tensor], y2):
+            def forward(self, y1, x: list[torch.Tensor], y2):
                 x1, x2 = x
                 return x1, x2, y1, y2
 
@@ -288,11 +285,10 @@ class TestListUnpackParameterNested(PytorchLayerTest):
 
     def create_model(self):
         import torch
-        from typing import List
 
         class model(torch.nn.Module):
 
-            def forward(self, x: List[List[torch.Tensor]]):
+            def forward(self, x: list[list[torch.Tensor]]):
                 x1, x2 = x
                 y1, y2 = x1
                 y3, y4 = x2
@@ -313,11 +309,10 @@ class TestListUnpackParameterMultiple(PytorchLayerTest):
 
     def create_model(self):
         import torch
-        from typing import List
 
         class model(torch.nn.Module):
 
-            def forward(self, x: List[torch.Tensor], y: List[torch.Tensor]):
+            def forward(self, x: list[torch.Tensor], y: list[torch.Tensor]):
                 z1, z2 = x
                 z3, z4 = y
                 return z1, z2, z3, z4
@@ -327,3 +322,38 @@ class TestListUnpackParameterMultiple(PytorchLayerTest):
     @pytest.mark.nightly
     def test(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version)
+
+
+class TestComplexListUnpack(PytorchLayerTest):
+    """Test prim::ListUnpack with complex tensors (ComplexTypeMark propagation).
+
+    This tests the changes in list_unpack.cpp that handle ComplexTypeMark
+    propagation through ListUnpack operations.
+    """
+
+    def _prepare_input(self):
+        rng = np.random.default_rng(43)
+        return (rng.standard_normal((2, 4, 2)).astype(np.float32),)
+
+    def create_model(self):
+        class ComplexListUnpack(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                g = torch.Generator().manual_seed(42)
+                freqs = torch.randn(4, 2, generator=g)
+                complex_freqs = torch.view_as_complex(freqs)
+                self.register_buffer('freqs', torch.view_as_real(complex_freqs))
+
+            def forward(self, x):
+                cx = torch.view_as_complex(x)
+                cf = torch.view_as_complex(self.freqs)
+                result = cx * cf
+                return torch.view_as_real(result)
+
+        return ComplexListUnpack(), None, "aten::mul"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_complex_list_unpack(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version,
+                   trace_model=True)

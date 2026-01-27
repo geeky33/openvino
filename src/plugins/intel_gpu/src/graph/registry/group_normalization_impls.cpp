@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,6 @@
     #include "impls/ocl_v2/group_normalization_bfyx_opt.hpp"
     #include "impls/ocl_v2/group_normalization_fsv16.hpp"
 #endif
-
 
 namespace ov::intel_gpu {
 

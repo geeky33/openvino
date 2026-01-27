@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Behavior.*OVInferRequestIOTensorTest.*canInferAfterIOBlobReallocation.*)",
         R"(.*Behavior.*OVInferRequestDynamicTests.*InferUpperBoundNetworkAfterIOTensorsReshaping.*)",
         // template plugin doesn't support this case
-        R"(.*OVInferRequestPerfCountersTest.*CheckOperationInProfilingInfo.*)"};
+        R"(.*OVInferRequestPerfCountersTest.*CheckOperationInProfilingInfo.*)",
+        // model import is not supported
+        R"(.*OVCompiledModelBaseTest.import_from_.*)"};
 
 #if !defined(OPENVINO_ARCH_X86_64)
     // very time-consuming test

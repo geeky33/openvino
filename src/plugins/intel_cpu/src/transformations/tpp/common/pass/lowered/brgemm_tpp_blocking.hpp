@@ -1,10 +1,19 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <tuple>
+
+#include "openvino/core/rtti.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/brgemm_blocking.hpp"
+#include "snippets/lowered/pass/pass.hpp"
+#include "snippets/lowered/specific_loop_iter_handlers.hpp"
 #include "transformations/tpp/common/op/brgemm.hpp"
 
 namespace ov::intel_cpu::tpp::pass {

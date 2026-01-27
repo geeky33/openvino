@@ -1,10 +1,18 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "utils.hpp"
 
-#include "openvino/opsets/opset1.hpp"
+#include <memory>
+#include <unordered_set>
+
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 #include "ov_ops/fully_connected.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
 #include "transformations/utils/utils.hpp"
@@ -14,7 +22,7 @@ namespace ov::intel_cpu {
 bool has_matmul_with_compressed_weights(const std::shared_ptr<const ov::Model>& model) {
     bool has_decompression_multiply = false;
     auto is_decompression_multiply = [&](ov::Node* node) {
-        if (auto multiply = ov::as_type<ov::op::v1::Multiply>(node)) {
+        if (auto* multiply = ov::as_type<ov::op::v1::Multiply>(node)) {
             if (ov::is_dequantization_node(multiply->shared_from_this())) {
                 has_decompression_multiply = true;
             }
@@ -31,7 +39,7 @@ bool has_matmul_with_compressed_weights(const std::shared_ptr<const ov::Model>& 
         }
 
         auto weights = op->input_value(1);
-        if (!ov::op::util::is_on_constant_path(weights)) {
+        if (!ov::op::util::is_on_path<ov::op::v0::Constant>(weights)) {
             continue;
         }
 

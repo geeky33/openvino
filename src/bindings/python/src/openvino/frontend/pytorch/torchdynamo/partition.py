@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # mypy: ignore-errors
 
-from typing import Dict
 
 import torch
 from torch.nn import Module
@@ -22,7 +21,6 @@ import typing as t
 import logging
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
 
 
 class PatternNode:
@@ -40,10 +38,10 @@ class Partitioner:
         fx_gm = make_fx(graph_module)(*args)
         return fx_gm
 
-    def add_get_attr_inputs(self, partitions: t.List[Partition]):
+    def add_get_attr_inputs(self, partitions: list[Partition]):
         # TODO: Find a more efficient way to include input
         # "get_attr" nodes to the partitions.
-        getattr_to_merge: Dict[Node, Node] = {}
+        getattr_to_merge: dict[Node, Node] = {}
         for partition in partitions:
             for pnode in partition.nodes:
                 for pnode_input in pnode.all_input_nodes:
@@ -97,7 +95,10 @@ class Partitioner:
         unsqueeze_1_node = PatternNode
         unsqueeze_1_node.op_types["call_function:aten.unsqueeze.default"] = [const_1_node]
         bitwise_right_shift_node = PatternNode
-        bitwise_right_shift_node.op_types["call_function:aten.bitwise_right_shift.Tensor"] = [expand_node, unsqueeze_1_node]
+        bitwise_right_shift_node.op_types["call_function:aten.bitwise_right_shift.Tensor"] = [
+            expand_node,
+            unsqueeze_1_node,
+        ]
         to_copy_node = PatternNode
         to_copy_node.op_types["call_function:aten._to_copy.default"] = [bitwise_right_shift_node]
         add_or_to_copy_node = PatternNode
@@ -133,6 +134,7 @@ class Partitioner:
                         self.supported_ops.enable_by_name(pattern_op)
 
     def make_partitions(self, graph_module: GraphModule, options) -> GraphModule:
+        logger.debug(f"Graph module before partitioning {graph_module}")
         allow_single_node_partition = _is_testing(options)
         self.capture_gptq_patterns(graph_module)
         self.capture_nncf_patterns(graph_module)
@@ -141,5 +143,6 @@ class Partitioner:
         partitions = partitioner.propose_partitions()
         self.add_get_attr_inputs(partitions)
         fused_graph_module = partitioner.fuse_partitions(partitions)
+        logger.debug(f"Graph module after partitioning {fused_graph_module}")
 
         return fused_graph_module

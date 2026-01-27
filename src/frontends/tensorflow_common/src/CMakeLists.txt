@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -39,3 +39,5 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                     ADDITIONAL_INCLUDE_DIRECTORIES
                         $<TARGET_PROPERTY:${TARGET_NAME},INTERFACE_INCLUDE_DIRECTORIES>
                         $<TARGET_PROPERTY:${TARGET_NAME},INCLUDE_DIRECTORIES>)
+
+ov_build_target_faster(${TARGET_NAME} PCH)

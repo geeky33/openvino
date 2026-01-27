@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,8 +28,11 @@ void MHABase::generate_inputs(const std::vector<ov::Shape>& targetInputStaticSha
         const auto& model_input = model_inputs[i];
         ov::Tensor tensor;
         ov::test::utils::InputGenerateData in_data;
+        const bool bf16_precision =
+            configuration.at(ov::hint::inference_precision.name()).as<ov::element::Type>() == ov::element::bf16 ||
+            model_input.get_element_type() == ov::element::bf16;
         // To avoid big relative errors in the vicinity of zero, only positive values are generated for bf16 precision
-        in_data.start_from = model_input.get_element_type() == ov::element::bf16 ? 0 : -1;
+        in_data.start_from = bf16_precision ? 0 : -1;
         in_data.range = 2;
         in_data.resolution = 256;
         tensor =
@@ -49,44 +52,34 @@ void MHABase::SetUp() {
     function = subgraph_model->getOriginal();
 
     configuration.insert(additional_config.begin(), additional_config.end());
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 
     inType = outType = prc;
     setInferenceType(prc);
-    init_thresholds();
 }
 
- void MHABase::init_thresholds() {
+void MHABase::init_thresholds() {
     // Note: Libxsmm calculates Exp in a slightly different way, so the abs values might differ a bit. Ticket: 130699
 #ifdef SNIPPETS_LIBXSMM_TPP
     abs_threshold = 1e-6;
 #endif
-    if (inType == ov::element::bf16)
+    auto infer_precision = configuration.at(ov::hint::inference_precision.name()).as<ov::element::Type>();
+    if (infer_precision == ov::element::bf16)
         rel_threshold = 0.05f;
-    if (inType == ov::element::f16)
+    if (infer_precision == ov::element::f16)
         abs_threshold = 2e-2;
- }
+}
 
-std::string MHA::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAParams> obj) {
-    std::vector<InputShape> input_shapes;
-    std::vector<ov::element::Type> elem_types;
-    ov::element::Type prc;
-    bool with_mul;
-    size_t thread_count;
-    std::string target_device;
-    size_t num_nodes, num_subgraphs;
-    ov::AnyMap additional_config;
-    std::tie(input_shapes,
-             elem_types,
-             prc,
-             with_mul,
-             thread_count,
-             num_nodes,
-             num_subgraphs,
-             target_device,
-             additional_config) = obj.param;
+std::string MHA::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::MHAParams>& obj) {
+    const auto& [input_shapes,
+                 elem_types,
+                 prc,
+                 with_mul,
+                 thread_count,
+                 num_nodes,
+                 num_subgraphs,
+                 target_device,
+                 additional_config] = obj.param;
 
     std::ostringstream result;
     for (size_t i = 0; i < input_shapes.size(); i++)
@@ -109,15 +102,15 @@ std::string MHA::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAP
     return result.str();
 }
 
-std::string MHAWithDynamicMul::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAWithDynamicMulParams> obj) {
-    std::vector<InputShape> input_shapes;
-    std::vector<ov::element::Type> elem_types;
-    ov::element::Type prc;
-    size_t thread_count;
-    std::string target_device;
-    size_t num_nodes, num_subgraphs;
-    ov::AnyMap additional_config;
-    std::tie(input_shapes, elem_types, prc, thread_count, num_nodes, num_subgraphs, target_device, additional_config) = obj.param;
+std::string MHAWithDynamicMul::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::MHAWithDynamicMulParams>& obj) {
+    const auto& [input_shapes,
+                 elem_types,
+                 prc,
+                 thread_count,
+                 num_nodes,
+                 num_subgraphs,
+                 target_device,
+                 additional_config] = obj.param;
 
     std::ostringstream result;
     for (size_t i = 0; i < input_shapes.size(); i++)
@@ -151,6 +144,10 @@ void MHAWithDynamicMul::init_params(std::vector<InputShape>& input_shapes, ov::e
 std::shared_ptr<SnippetsFunctionBase> MHA::get_subgraph() const {
     bool is_with_reshape = std::all_of(inputDynamicShapes.begin(), inputDynamicShapes.end(), [](const PartialShape& ps){ return ps.is_static(); });
     return std::make_shared<ov::test::snippets::MHAFunction>(inputDynamicShapes, m_input_types, m_with_mul, is_with_reshape);
+}
+
+std::shared_ptr<SnippetsFunctionBase> MHA2D::get_subgraph() const {
+    return std::make_shared<ov::test::snippets::MHA2DFunction>(inputDynamicShapes, m_input_types);
 }
 
 void MHA::init_thresholds() {
@@ -245,11 +242,25 @@ std::shared_ptr<SnippetsFunctionBase> MHAWithExtractedReshape::get_subgraph() co
     return std::make_shared<ov::test::snippets::MHAWithExtractedReshapeFunction>(inputDynamicShapes, false);
 }
 
+std::shared_ptr<SnippetsFunctionBase> MHARankUpgradeToReductionReshape::get_subgraph() const {
+    return std::make_shared<ov::test::snippets::MHARankUpgradeToReductionFunction>(inputDynamicShapes);
+}
+
 std::shared_ptr<SnippetsFunctionBase> MHAWithDynamicMul::get_subgraph() const {
     return std::make_shared<ov::test::snippets::MHAWithDynamicMulFunction>(inputDynamicShapes, m_input_types);
 }
 
+std::shared_ptr<SnippetsFunctionBase> MHASharedKV::get_subgraph() const {
+    return std::make_shared<ov::test::snippets::MHASharedKVFunction>(inputDynamicShapes, m_input_types);
+}
+
 TEST_P(MHA, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(MHA2D, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();
@@ -316,7 +327,19 @@ TEST_P(MHAWithExtractedReshape, CompareWithRefImpl) {
     validateNumSubgraphs();
 }
 
+TEST_P(MHARankUpgradeToReductionReshape, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    validateNumSubgraphs();
+}
+
 TEST_P(MHAWithDynamicMul, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(MHASharedKV, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -159,7 +159,7 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
     }
     if (FLAGS_hint != "none" && (FLAGS_nstreams != "" || FLAGS_nthreads != 0 || FLAGS_pin != "")) {
         throw std::logic_error("-nstreams, -nthreads and -pin options are fine tune options. To use them you "
-                               "should explicitely set -hint option to none. This is not OpenVINO limitation "
+                               "should explicitly set -hint option to none. This is not OpenVINO limitation "
                                "(those options can be used in OpenVINO together), but a benchmark_app UI rule.");
     }
     if (!FLAGS_report_type.empty() && FLAGS_report_type != noCntReport && FLAGS_report_type != averageCntReport &&
@@ -258,7 +258,7 @@ void handle_performance_hint(const std::string& device, const ov::Core& core, ov
             config.erase(ov::hint::performance_mode.name());
         }
     } else {
-        if (FLAGS_hint != "none" || FLAGS_hint != "") {
+        if (FLAGS_hint != "none" && FLAGS_hint != "") {
             slog::warn << "Device(" << device << ") does not support performance hint property(-hint)." << slog::endl;
         }
     }
@@ -294,9 +294,8 @@ void warn_if_no_batch(const benchmark_app::InputsInfo& first_inputs) {
                      [](const std::pair<const std::string, benchmark_app::InputInfo>& info) {
                          return ov::layout::has_batch(info.second.layout);
                      })) {
-        slog::warn
-            << "No batch dimension was found, asssuming batch to be 1. Beware: this might affect FPS calculation."
-            << slog::endl;
+        slog::warn << "No batch dimension was found, assuming batch to be 1. Beware: this might affect FPS calculation."
+                   << slog::endl;
     }
 }
 
@@ -456,7 +455,7 @@ int main(int argc, char* argv[]) {
         // Remove the hardware devices if AUTO/MULTI/HETERO appears in the devices list.
         if (is_virtual) {
             devices.clear();
-            // Parse out the currect virtual device as the target device.
+            // Parse out the current virtual device as the target device.
             std::string virtual_device = split(device_name, ':').at(0);
             auto iter_virtual = std::find(hardware_devices.begin(), hardware_devices.end(), virtual_device);
             hardware_devices.erase(iter_virtual);
@@ -766,9 +765,13 @@ int main(int argc, char* argv[]) {
                     // Some tensors might have no names, get_any_name will throw exception in that case.
                     // -iop option will not work for those tensors.
                     name = item.get_any_name();
-                    iop_precision = getPrecision2(user_precisions_map.at(item.get_any_name()));
                 } catch (...) {
                 }
+                const auto& prc = user_precisions_map.find(name);
+                if (prc != user_precisions_map.end()) {
+                    iop_precision = getPrecision2(prc->second);
+                }
+
                 if (iop_precision != ov::element::dynamic) {
                     type_to_set = iop_precision;
                 } else if (input_precision != ov::element::dynamic) {
@@ -800,12 +803,18 @@ int main(int argc, char* argv[]) {
             for (size_t i = 0; i < outs.size(); i++) {
                 const auto& item = outs[i];
                 auto iop_precision = ov::element::dynamic;
+                std::string name;
                 try {
                     // Some tensors might have no names, get_any_name will throw exception in that case.
                     // -iop option will not work for those tensors.
-                    iop_precision = getPrecision2(user_precisions_map.at(item.get_any_name()));
+                    name = item.get_any_name();
                 } catch (...) {
                 }
+                const auto& prc = user_precisions_map.find(name);
+                if (prc != user_precisions_map.end()) {
+                    iop_precision = getPrecision2(prc->second);
+                }
+
                 if (iop_precision != ov::element::dynamic) {
                     preproc.output(i).tensor().set_element_type(iop_precision);
                 } else if (output_precision != ov::element::dynamic) {
@@ -1165,47 +1174,53 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // warming up - out of scope
-        auto inferRequest = inferRequestsQueue.get_idle_request();
-        if (!inferRequest) {
-            OPENVINO_THROW("No idle Infer Requests!");
-        }
+        std::shared_ptr<InferReqWrap> inferRequest;
 
-        if (!inferenceOnly) {
-            auto inputs = app_inputs_info[0];
-
-            for (auto& item : inputs) {
-                auto inputName = item.first;
-                const auto& data = inputsData.at(inputName)[0];
-                inferRequest->set_tensor(inputName, data);
+        // conditional warmup based on FLAGS_no_warmup
+        if (!FLAGS_no_warmup) {
+            // warming up - out of scope
+            inferRequest = inferRequestsQueue.get_idle_request();
+            if (!inferRequest) {
+                OPENVINO_THROW("No idle Infer Requests!");
             }
+            if (!inferenceOnly) {
+                auto inputs = app_inputs_info[0];
 
-            if (useGpuMem) {
-                auto outputTensors =
-                    ::gpu::get_remote_output_tensors(compiledModel, inferRequest->get_output_cl_buffer());
-                for (auto& output : compiledModel.outputs()) {
-                    inferRequest->set_tensor(output.get_any_name(), outputTensors[output.get_any_name()]);
+                for (auto& item : inputs) {
+                    auto inputName = item.first;
+                    const auto& data = inputsData.at(inputName)[0];
+                    inferRequest->set_tensor(inputName, data);
+                }
+
+                if (useGpuMem) {
+                    auto outputTensors =
+                        ::gpu::get_remote_output_tensors(compiledModel, inferRequest->get_output_cl_buffer());
+                    for (auto& output : compiledModel.outputs()) {
+                        inferRequest->set_tensor(output.get_any_name(), outputTensors[output.get_any_name()]);
+                    }
                 }
             }
-        }
 
-        if (FLAGS_api == "sync") {
-            inferRequest->infer();
+            if (FLAGS_api == "sync") {
+                inferRequest->infer();
+            } else {
+                inferRequest->start_async();
+            }
+
+            inferRequestsQueue.wait_all();
+
+            auto duration_ms = inferRequestsQueue.get_latencies()[0];
+            slog::info << "First inference took " << double_to_string(duration_ms) << " ms" << slog::endl;
+
+            if (statistics) {
+                statistics->add_parameters(
+                    StatisticsReport::Category::EXECUTION_RESULTS,
+                    {StatisticsVariant("first inference time (ms)", "first_inference_time", duration_ms)});
+            }
+            inferRequestsQueue.reset_times();
         } else {
-            inferRequest->start_async();
+            slog::info << "Skipping warmup inference due to -no_warmup flag" << slog::endl;
         }
-
-        inferRequestsQueue.wait_all();
-
-        auto duration_ms = inferRequestsQueue.get_latencies()[0];
-        slog::info << "First inference took " << double_to_string(duration_ms) << " ms" << slog::endl;
-
-        if (statistics) {
-            statistics->add_parameters(
-                StatisticsReport::Category::EXECUTION_RESULTS,
-                {StatisticsVariant("first inference time (ms)", "first_inference_time", duration_ms)});
-        }
-        inferRequestsQueue.reset_times();
 
         size_t processedFramesN = 0;
         auto startTime = Time::now();

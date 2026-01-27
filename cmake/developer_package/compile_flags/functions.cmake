@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -10,7 +10,7 @@ include(CheckCXXSourceCompiles)
 # ov_disable_deprecated_warnings()
 #
 # Disables deprecated warnings generation in current scope (directory, function)
-# Defines ov_c_cxx_deprecated varaible which contains C / C++ compiler flags
+# Defines ov_c_cxx_deprecated variable which contains C / C++ compiler flags
 #
 macro(ov_disable_deprecated_warnings)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
@@ -37,7 +37,7 @@ endmacro()
 # ov_deprecated_no_errors()
 #
 # Don't threat deprecated warnings as errors in current scope (directory, function)
-# Defines ov_c_cxx_deprecated_no_errors varaible which contains C / C++ compiler flags
+# Defines ov_c_cxx_deprecated_no_errors variable which contains C / C++ compiler flags
 #
 macro(ov_deprecated_no_errors)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
@@ -236,7 +236,6 @@ macro(ov_arm_neon_optimization_flags flags)
         endif()
     else()
         if(AARCH64)
-            set(${flags} -O2)
             if(NOT CMAKE_CL_64)
                 list(APPEND ${flags} -ftree-vectorize)
             endif()
@@ -263,7 +262,7 @@ macro(ov_arm_neon_fp16_optimization_flags flags)
             message(WARNING "ARM64 fp16 is not supported by Android armv7")
         endif()
     elseif(AARCH64)
-        set(${flags} -O2 -march=armv8.2-a+fp16)
+        set(${flags} -march=armv8.2-a+fp16)
         if(NOT CMAKE_CL_64)
             list(APPEND ${flags} -ftree-vectorize)
         endif()
@@ -283,7 +282,7 @@ macro(ov_arm_sve_optimization_flags flags)
     endif()
 
     # Check for compiler SVE support
-    ov_check_compiler_supports_sve("-march=armv8-a+sve")
+    ov_check_compiler_supports_sve("-march=armv8-a+sve+fp16")
     if(OV_COMPILER_IS_INTEL_LLVM)
         message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
@@ -301,11 +300,9 @@ macro(ov_arm_sve_optimization_flags flags)
         endif()
     else()
         if(AARCH64)
-            set(${flags} -O2)
-
             # Add flag for SVE if supported
             if(CXX_SVE_FOUND)
-                list(APPEND ${flags} -march=armv8-a+sve)
+                list(APPEND ${flags} -march=armv8-a+sve+fp16)
             endif()
             if(NOT CMAKE_CL_64)
                 list(APPEND ${flags} -ftree-vectorize)
@@ -458,12 +455,18 @@ function(ov_target_link_libraries_as_system TARGET_NAME LINK_TYPE)
         if(TARGET ${library})
             get_target_property(include_directories ${library} INTERFACE_INCLUDE_DIRECTORIES)
             if(include_directories)
+                if ("${include_directories}" MATCHES "^\\$<BUILD_INTERFACE:.*>$")
+                    string(REGEX REPLACE "^\\$<BUILD_INTERFACE:" "" include_directories "${include_directories}")
+                    string(REGEX REPLACE ">$" "" include_directories "${include_directories}")
+                endif()
                 foreach(include_directory IN LISTS include_directories)
                     # cannot include /usr/include headers as SYSTEM
                     if(NOT "${include_directory}" MATCHES ".*/usr/include.*$")
                         # Note, some include dirs can be wrapper with $<BUILD_INTERFACE:dir1 dir2 ...> and we need to clean it
-                        string(REGEX REPLACE "^\\$<BUILD_INTERFACE:" "" include_directory "${include_directory}")
-                        string(REGEX REPLACE ">$" "" include_directory "${include_directory}")
+                        if ("${include_directory}" MATCHES "^\\$<BUILD_INTERFACE:.*>$")
+                            string(REGEX REPLACE "^\\$<BUILD_INTERFACE:" "" include_directory "${include_directory}")
+                            string(REGEX REPLACE ">$" "" include_directory "${include_directory}")
+                        endif()
                         target_include_directories(${TARGET_NAME} SYSTEM ${LINK_TYPE} $<BUILD_INTERFACE:${include_directory}>)
                     else()
                         set(_system_library ON)

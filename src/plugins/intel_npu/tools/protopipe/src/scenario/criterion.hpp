@@ -1,10 +1,11 @@
 //
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
 
 struct ITermCriterion {

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -37,7 +37,7 @@ if(ENABLE_LTO)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 endif()
 
-if(ENABLE_PROFILING_ITT)
+if(NOT ENABLE_PROFILING_ITT STREQUAL "OFF")
     find_package(ittapi QUIET)
     if(ittapi_FOUND)
         if(TARGET ittapi::ittapi)
@@ -117,6 +117,12 @@ if(ENABLE_INTEL_GPU)
             file(STRINGS "${OpenCL_HPP}" CL_DEVICE_UUID_KHR_CPP REGEX ".*CL_DEVICE_UUID_KHR.*")
             if(CL_DEVICE_UUID_KHR_CPP)
                 list(APPEND opencl_interface_definitions OV_GPU_OPENCL_HPP_HAS_UUID)
+            endif()
+
+            # check whether CL/opencl.hpp contains C++ wrapper for property CL_DEVICE_PCI_BUS_INFO_KHR
+            file(STRINGS "${OpenCL_HPP}" CL_DEVICE_PCI_BUS_INFO_KHR_CPP REGEX ".*CL_DEVICE_PCI_BUS_INFO_KHR.*")
+            if(CL_DEVICE_PCI_BUS_INFO_KHR_CPP)
+                list(APPEND opencl_interface_definitions OV_GPU_OPENCL_HPP_HAS_BUS_INFO)
             endif()
 
             set_target_properties(OpenCL::OpenCL PROPERTIES
@@ -285,7 +291,10 @@ if(NOT TARGET openvino::pugixml)
         ov_build_pugixml_static()
         set_property(TARGET pugixml-static PROPERTY EXPORT_NAME pugixml)
         add_library(openvino::pugixml ALIAS pugixml-static)
-        ov_developer_package_export_targets(TARGET openvino::pugixml)
+        ov_developer_package_export_targets(TARGET openvino::pugixml
+            INSTALL_INCLUDE_DIRECTORIES
+                $<TARGET_PROPERTY:openvino::pugixml,INTERFACE_INCLUDE_DIRECTORIES>/pugixml.hpp
+                $<TARGET_PROPERTY:openvino::pugixml,INTERFACE_INCLUDE_DIRECTORIES>/pugiconfig.hpp)
         ov_install_static_lib(pugixml-static ${OV_CPACK_COMP_CORE})
     endfunction()
 
@@ -298,7 +307,10 @@ endif()
 
 if(ENABLE_SAMPLES OR ENABLE_TESTS OR ENABLE_INTEL_NPU_INTERNAL)
     add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
-    ov_developer_package_export_targets(TARGET gflags)
+    ov_developer_package_export_targets(
+        TARGET gflags
+        INSTALL_INCLUDE_DIRECTORIES "${CMAKE_BINARY_DIR}/thirdparty/gflags/gflags/include/gflags"
+        INSTALL_DESTIONATION "developer_package/include/gflags")
 endif()
 
 #
@@ -412,7 +424,7 @@ endif()
 # FlatBuffers
 #
 
-if(ENABLE_OV_TF_LITE_FRONTEND)
+if(ENABLE_OV_TF_LITE_FRONTEND OR ENABLE_INTEL_NPU)
     if(ENABLE_SYSTEM_FLATBUFFERS)
         ov_cross_compile_define_debian_arch()
 
@@ -435,10 +447,15 @@ if(ENABLE_OV_TF_LITE_FRONTEND)
         set(flatbuffers_COMPILER flatbuffers::flatc)
     else()
         add_subdirectory(thirdparty/flatbuffers EXCLUDE_FROM_ALL)
-
-        # used by NPU repo
-        set(flatc_COMMAND flatc)
-        set(flatc_TARGET flatc)
+        if(ENABLE_INTEL_NPU)
+            # NPU plugin requires flatbuffers to be built always
+            add_custom_target(npu_compiler_flatbuffers ALL DEPENDS flatbuffers flatc)
+            set(flatbuffers_root "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/flatbuffers/flatbuffers")
+            ov_developer_package_export_targets(TARGET flatbuffers
+                    INSTALL_INCLUDE_DIRECTORIES "${flatbuffers_root}/include/")
+            ov_developer_package_export_targets(TARGET ProjectConfig)
+            install(TARGETS flatc DESTINATION "developer_package/bin" COMPONENT developer_package EXCLUDE_FROM_ALL)
+        endif()
     endif()
 
     # set additional variables, used in other places of our cmake scripts

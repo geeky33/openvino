@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*OVCompiledModelBaseTest.*compile_from_.*_blob.*targetDevice=(HETERO.NPU).*)",
         R"(.*OVCompiledModelBaseTest.*compile_from_cached_weightless_blob.*targetDevice=(HETERO.NPU).*)",
         R"(.*OVCompiledModelBaseTest.*use_blob_hint_.*targetDevice=CPU.*)",
-    };
+        // model import is not supported
+        R"(.*OVCompiledModelBaseTest.import_from_.*)"};
     return retVector;
 }

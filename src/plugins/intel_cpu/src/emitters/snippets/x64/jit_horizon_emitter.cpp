@@ -1,8 +1,24 @@
-// Copyright (C) 2020-2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "jit_horizon_emitter.hpp"
+
+#include <xbyak/xbyak.h>
+
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <vector>
+
+#include "emitters/plugin/x64/jit_emitter.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/op/horizon_max.hpp"
+#include "snippets/op/horizon_sum.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;
@@ -10,7 +26,7 @@ using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu {
 
-jit_horizon_emitter::jit_horizon_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+jit_horizon_emitter::jit_horizon_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                                          dnnl::impl::cpu::x64::cpu_isa_t isa,
                                          const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_emitter(h, isa, ov::element::f32, emitter_in_out_map::vec_to_vec) {

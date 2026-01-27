@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -284,10 +284,10 @@ std::vector<ov::test::GatherStringParamsTuple> string_cases_params{
 
 const auto gatherWithStringParams = testing::ValuesIn(string_cases_params);
 
-INSTANTIATE_TEST_CASE_P(smoke_gather_string,
-                        GatherStringWithIndicesDataLayerTest,
-                        gatherWithStringParams,
-                        GatherStringWithIndicesDataLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_gather_string,
+                         GatherStringWithIndicesDataLayerTest,
+                         gatherWithStringParams,
+                         GatherStringWithIndicesDataLayerTest::getTestCaseName);
 
 const std::vector<ov::element::Type> mixed_model_types = {
     ov::element::f16,

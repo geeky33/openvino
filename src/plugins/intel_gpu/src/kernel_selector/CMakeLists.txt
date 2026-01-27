@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -70,10 +70,6 @@ if (ENABLE_ONEDNN_FOR_GPU)
     target_link_libraries(${TARGET_NAME} PRIVATE onednn_gpu_tgt)
 endif()
 
-if(COMMAND add_cpplint_target)
-  add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
-endif()
-
 target_link_libraries(${TARGET_NAME} PUBLIC OpenCL::OpenCL openvino::runtime PRIVATE openvino::runtime::dev)
 
 target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:rapidjson,INTERFACE_INCLUDE_DIRECTORIES>)
@@ -91,6 +87,8 @@ if(OV_GENERATOR_MULTI_CONFIG)
 else()
   set(TUNING_CACHE_PATH "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/")
 endif()
+
+ov_build_target_faster(${TARGET_NAME} PCH)
 
 add_custom_command(
     TARGET ${TARGET_NAME} POST_BUILD

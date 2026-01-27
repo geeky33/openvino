@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # mypy: ignore-errors
@@ -15,10 +15,14 @@ from torch.fx import GraphModule
 from openvino.frontend import FrontEndManager
 from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 from openvino import Core, Type, PartialShape, serialize
-from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_device, _get_config, _is_cache_dir_in_config
+from openvino.frontend.pytorch.torchdynamo.backend_utils import (
+    _get_cache_dir,
+    _get_device,
+    _get_config,
+    _is_cache_dir_in_config,
+)
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
 
 
 def cached_model_name(model_hash_str, device, args, cache_root, reversed=False):  # noqa: VNE003
@@ -139,4 +143,6 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
             config["CACHE_DIR"] = cache_root
 
     compiled = core.compile_model(om, device, config)
+    logger.debug(f"OpenVINO graph compile successful on device {device}")
+
     return compiled

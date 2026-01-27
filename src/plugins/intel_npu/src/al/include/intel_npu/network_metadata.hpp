@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,6 +65,25 @@ struct IODescriptor {
     bool isShapeTensor = false;
 
     /**
+     * @brief If "true", the current object describes an input for an init schedule (weights separation).
+     */
+    bool isInitInputWeights = false;
+
+    /**
+     * @brief If "true", the current object describes an output for an init schedule (weights separation).
+     */
+    bool isInitOutputWeights = false;
+
+    /**
+     * @brief If "true", the current object describes a weights input for the main schedule (weights separation).
+     *
+     * @details If weights separation is enabled, a significant amount of weights are cut off from the compiled model
+     * and then corresponding placeholders are created as inputs. These inputs are meant to be obtained by running the
+     * init schedule(s).
+     */
+    bool isMainInputWeights = false;
+
+    /**
      * @brief Points towards a related descriptor.
      * @details The related descriptors are defined by (state input, state output) or (dynamic tensor, shape tensor)
      * pairs.
@@ -100,6 +119,21 @@ struct IODescriptor {
      * by the compiler).
      */
     std::optional<ov::PartialShape> shapeFromIRModel = std::nullopt;
+
+    /**
+     * @brief The driver index of the descriptor.
+     * @details This value is used by the driver to identify the input/output buffer. Driver indices for inputs and
+     * outputs are assigned in the same vector and could have different indexing.
+     */
+    uint32_t indexUsedByDriver;
+
+    /**
+     * @brief Indicates whether strided memory layout is supported for this tensor.
+     * @details When set to true, this tensor can use non-contiguous memory layout with custom strides,
+     * allowing for more flexible memory access patterns. Strided tensors enable efficient representation of sliced or
+     * transposed data without copying.
+     */
+    bool supportsStridedLayout = false;
 };
 
 struct NetworkMetadata final {

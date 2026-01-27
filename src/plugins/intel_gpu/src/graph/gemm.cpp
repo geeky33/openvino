@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "gemm_inst.h"
@@ -95,6 +95,10 @@ layout gemm_inst::calc_output_layout(gemm_node const& node, kernel_impl_params c
     }
 
     auto output_format = input0_layout.format;
+    // If output_format is smaller than output_shape, adjust rank such as calc_output_layouts.
+    if (output_shape.size() > output_format.dimension()) {
+        output_format = cldnn::format::adjust_to_rank(output_format, output_shape.size());
+    }
 
     if (node.get_preferred_impl_type() == impl_types::onednn && node.get_preferred_output_fmt() != format::any) {
         output_format = node.get_preferred_output_fmt();
@@ -154,8 +158,8 @@ std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<con
             return input_padding;
         }
 
-        std::vector<int32_t> pad_low(input_padding._lower_size.begin(), input_padding._lower_size.begin() + input_rank);
-        std::vector<int32_t> pad_up(input_padding._upper_size.begin(), input_padding._upper_size.begin() + input_rank);
+        std::vector<ov::Dimension::value_type> pad_low(input_padding._lower_size.begin(), input_padding._lower_size.begin() + input_rank);
+        std::vector<ov::Dimension::value_type> pad_up(input_padding._upper_size.begin(), input_padding._upper_size.begin() + input_rank);
 
         if (input_rank == 1) {
             if (first_input) {
@@ -190,7 +194,8 @@ std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<con
             }
         } else {
             if (input_pshape.is_static()) {
-                OPENVINO_ASSERT(input_pshape.size() >= input_rank, "[GPU] Requested input rank in gemm primitive is greater than actual shape");
+                OPENVINO_ASSERT(input_pshape.size() >= input_rank, "[GPU] Requested input rank[",
+                        input_rank, "] in gemm primitive is greater than actual shape: ", input_pshape.to_string());
                 std::vector<ov::Dimension> dims(input_pshape.begin(), input_pshape.begin() + input_rank);
                 transposed_input_pshape = ov::PartialShape(dims);
             } else {
@@ -314,13 +319,13 @@ std::string gemm_inst::to_string(gemm_node const& node) {
     gemm_info.add("beam_table", (desc->beam_table.is_valid() ? desc->beam_table.pid : "N/A"));
     gemm_info.add("alpha", alpha);
     gemm_info.add("beta", beta);
-    gemm_info.add("trasnpose_input0", transpose_input0);
+    gemm_info.add("transpose_input0", transpose_input0);
     gemm_info.add("transpose_input1", transpose_input1);
     gemm_info.add("indirect_input0", indirect_input0);
     gemm_info.add("indirect_input1", indirect_input1);
-    gemm_info.add("trasnpose_order_input0", desc->input0_transpose_order);
-    gemm_info.add("trasnpose_order_input1", desc->input1_transpose_order);
-    gemm_info.add("trasnpose_order_output", desc->output_transpose_order);
+    gemm_info.add("transpose_order_input0", desc->input0_transpose_order);
+    gemm_info.add("transpose_order_input1", desc->input1_transpose_order);
+    gemm_info.add("transpose_order_output", desc->output_transpose_order);
     node_info->add("gemm info", gemm_info);
     node_info->dump(primitive_description);
 

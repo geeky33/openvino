@@ -1,11 +1,11 @@
 # type: ignore
-"""
-openvino.properties.intel_auto submodule that simulates ov::intel_auto
-"""
 from __future__ import annotations
 import openvino._pyopenvino
 import typing
-__all__ = ['SchedulePolicy', 'device_bind_buffer', 'enable_runtime_fallback', 'enable_startup_fallback', 'schedule_policy']
+"""
+openvino.properties.intel_auto submodule that simulates ov::intel_auto
+"""
+__all__: list[str] = ['SchedulePolicy', 'device_bind_buffer', 'enable_runtime_fallback', 'enable_startup_fallback', 'schedule_policy']
 class SchedulePolicy:
     """
     Members:
@@ -32,7 +32,7 @@ class SchedulePolicy:
         ...
     def __index__(self) -> int:
         ...
-    def __init__(self, value: int) -> None:
+    def __init__(self, value: typing.SupportsInt) -> None:
         ...
     def __int__(self) -> int:
         ...
@@ -44,7 +44,7 @@ class SchedulePolicy:
         ...
     def __repr__(self) -> str:
         ...
-    def __setstate__(self, state: int) -> None:
+    def __setstate__(self, state: typing.SupportsInt) -> None:
         ...
     def __str__(self) -> str:
         ...

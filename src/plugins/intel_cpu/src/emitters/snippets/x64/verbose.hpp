@@ -1,12 +1,11 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #ifdef SNIPPETS_DEBUG_CAPS
+#    include <string>
 
 #    pragma once
-
-#    include <sstream>
 
 namespace ov::intel_cpu {
 class jit_emitter;
@@ -33,4 +32,4 @@ std::string get_emitter_type_name(const jit_emitter* emitter);
 
 }  // namespace ov::intel_cpu
 
-#endif
+#endif  // SNIPPETS_DEBUG_CAPS

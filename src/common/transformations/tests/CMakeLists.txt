@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -17,9 +17,10 @@ ov_add_test_target(
         func_test_utils
         openvino::offline_transformations
         openvino::reference
-        sharedTestClasses
         ov_lpt_models
     ADD_CLANG_FORMAT
     LABELS
         OV UNIT TRANSFORMATIONS
 )
+
+ov_build_target_faster(${TARGET_NAME} PCH)

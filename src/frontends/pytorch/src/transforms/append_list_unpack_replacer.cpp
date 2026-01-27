@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,12 +26,11 @@ namespace pass {
 using namespace ov::op;
 
 AppendListUnpackReplacer::AppendListUnpackReplacer() {
-    auto list_unpack = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>();
+    auto list_unpack =
+        ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>(fw_node_predicate({"prim::ListUnpack"}));
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
-        auto list_unpack = cast_fw_node(m.get_match_root(), "prim::ListUnpack");
-        if (!list_unpack)
-            return false;
+        auto list_unpack = m.get_match_root();
 
         OutputVector tmp_inputs;
         NodeVector rt_copy_from;

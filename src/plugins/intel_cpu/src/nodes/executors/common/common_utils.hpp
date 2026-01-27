@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 // @file common_utils.hpp
@@ -7,21 +7,26 @@
 
 #pragma once
 
+#include <algorithm>
+#include <cstddef>
+#include <functional>
+#include <numeric>
 #include <vector>
 
 #include "nodes/executors/memory_arguments.hpp"
+#include "openvino/core/except.hpp"
 #include "utils/cpu_utils.hpp"
 
 namespace ov::intel_cpu {
 
 [[maybe_unused]] static std::vector<float> getDeQuantizedScales(const MemoryArgs& memory) {
-    if (!memory.count(ARG_DST_DEQ_SCALE)) {
+    if (memory.find(ARG_DST_DEQ_SCALE) == memory.end()) {
         return {};
     }
 
     auto scalesMemory = memory.at(ARG_DST_DEQ_SCALE);
 
-    auto scalesData = static_cast<const float*>(scalesMemory->getData());
+    const auto* scalesData = static_cast<const float*>(scalesMemory->getData());
 
     if (!scalesData) {
         return {};

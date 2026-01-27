@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,7 +54,6 @@ struct multi_stage_primitive : public typed_primitive_impl<PType> {
         this->can_reuse_memory = other.can_reuse_memory;
         this->can_share_kernels = other.can_share_kernels;
         this->_kernel_name = other._kernel_name;
-        this->can_reuse_memory = other.can_reuse_memory;
         this->_is_dynamic = other._is_dynamic;
         this->m_manager = other.m_manager;
     }

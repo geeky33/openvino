@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -195,6 +195,8 @@ op::AutoBroadcastType op::AutoBroadcastSpec::type_from_string(const std::string&
 std::ostream& op::operator<<(std::ostream& s, const ov::op::RecurrentSequenceDirection& direction) {
     return s << as_string(direction);
 }
+
+template ov::op::BroadcastType as_enum<ov::op::BroadcastType, const char*>(const char* const&);
 
 AttributeAdapter<op::PadMode>::~AttributeAdapter() = default;
 AttributeAdapter<op::FillMode>::~AttributeAdapter() = default;

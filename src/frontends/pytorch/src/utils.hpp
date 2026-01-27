@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -83,6 +84,7 @@ OutputVector make_framework_node(const NodeContext& context, const std::string& 
 std::shared_ptr<op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node, const std::string& type);
 std::shared_ptr<op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node,
                                                       std::initializer_list<std::string> types);
+std::function<bool(const ov::Output<ov::Node>&)> fw_node_predicate(const std::initializer_list<std::string>& types);
 
 std::shared_ptr<Node> make_list_construct(const ov::OutputVector& inputs);
 
@@ -138,6 +140,31 @@ bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
                           bool& use_input_as_output);
 
 Output<Node> get_complex_shape(const NodeContext& context, const Output<Node>& complex_input);
+
+/// \brief Unwraps ComplexTypeMark node if present.
+/// \param input Input node to check.
+/// \return Pair of {underlying_data, complex_node_or_nullptr}.
+/// If input is ComplexTypeMark, returns its underlying data and the ComplexTypeMark node.
+/// Otherwise returns input as-is and nullptr.
+std::pair<Output<Node>, std::shared_ptr<ComplexTypeMark>> unwrap_complex(const Output<Node>& input);
+
+/// \brief Wraps result in ComplexTypeMark if complex is not nullptr.
+/// \param context Node context for marking nodes.
+/// \param result Result to wrap.
+/// \param complex ComplexTypeMark node to get type from, or nullptr to skip wrapping.
+/// \return Wrapped result if complex is not nullptr, otherwise result as-is.
+Output<Node> wrap_complex(const NodeContext& context,
+                          const Output<Node>& result,
+                          const std::shared_ptr<ComplexTypeMark>& complex);
+
+/// \brief Wraps multiple results in ComplexTypeMark if complex is not nullptr.
+/// \param context Node context for marking nodes.
+/// \param results Results to wrap.
+/// \param complex ComplexTypeMark node to get type from, or nullptr to skip wrapping.
+/// \return Wrapped results if complex is not nullptr, otherwise results as-is.
+OutputVector wrap_complex(const NodeContext& context,
+                          const OutputVector& results,
+                          const std::shared_ptr<ComplexTypeMark>& complex);
 
 namespace op {
 template <OutputVector (*T)(const NodeContext&), size_t idx = 0>
@@ -325,6 +352,12 @@ public:
     }
     virtual std::unordered_map<std::string, ov::Any> get_rt_info() const override {
         FRONT_END_NOT_IMPLEMENTED(get_rt_info);
+    }
+    virtual bool has_converter() const override {
+        FRONT_END_NOT_IMPLEMENTED(has_converter);
+    }
+    virtual OutputVector convert(const ov::frontend::NodeContext* context) const override {
+        FRONT_END_NOT_IMPLEMENTED(convert);
     }
 
 private:

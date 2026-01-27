@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,6 +34,7 @@
 ov::intel_gpu::DecomposeReduceForScalarOutput::DecomposeReduceForScalarOutput() {
     auto check_reduce_shape = [=](Output<Node> output) -> bool {
         const auto reduce = ov::as_type_ptr<op::util::ArithmeticReductionKeepDims>(output.get_node_shared_ptr());
+        OPENVINO_ASSERT(reduce != nullptr, "output is not reduce.");
         auto& input_shape = reduce->input_value(0).get_partial_shape();
         auto& reduce_shape = reduce->input_value(1).get_partial_shape();
         if (reduce_shape.is_dynamic() || reduce_shape.size() != 1) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/matmul.hpp"
 
 using namespace CPUTestUtils;
 
@@ -16,7 +17,7 @@ class FQScaleshiftWithConstantShiftTest : public testing::WithParamInterface<ov:
                                           public CPUTestsBase,
                                           virtual public SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ov::element::Type> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::element::Type>& obj) {
         ov::element::Type netPrecision;
         netPrecision = obj.param;
         std::ostringstream result;

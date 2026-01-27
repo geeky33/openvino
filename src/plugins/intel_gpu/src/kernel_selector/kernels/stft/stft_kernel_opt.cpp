@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -70,13 +70,13 @@ CommonDispatchData STFTKernelOpt::CalcLaunchConfig(const STFT_params& params) co
 
 bool STFTKernelOpt::Validate(const Params& p) const {
     if (STFTKernelBase::Validate(p) == false)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     const auto& params = static_cast<const STFT_params&>(p);
     const auto windowSize = params.inputs[1].LogicalSize();
 
     if (params.is_shape_agnostic && windowSize > STATIC_MAX_X_I_BUFFER)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

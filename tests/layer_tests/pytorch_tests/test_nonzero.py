@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -43,6 +43,7 @@ class TestNonZero(PytorchLayerTest):
     @pytest.mark.parametrize("as_tuple", [False, True])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_nonzero(self, mask_fill, mask_dtype, as_tuple, ie_device, precision, ir_version):
         self._test(*self.create_model(as_tuple),
                    ie_device, precision, ir_version,

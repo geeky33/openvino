@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,13 +36,10 @@ namespace pass {
 using namespace ov::op;
 
 AtenIndexToSelect::AtenIndexToSelect() {
-    auto index_op = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>();
+    auto index_op = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>(fw_node_predicate({"aten::index"}));
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
-        auto index_op = cast_fw_node(m.get_match_root(), "aten::index");
-        if (!index_op) {
-            return false;
-        }
+        auto index_op = m.get_match_root();
         ov::pass::NodeRegistry rg;
         auto input_node = index_op->input_value(0);
         auto indicies = index_op->input_value(1).get_node_shared_ptr();

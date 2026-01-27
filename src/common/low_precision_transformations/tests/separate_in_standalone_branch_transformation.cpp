@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,7 @@
 
 #include "simple_low_precision_transformer.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "openvino/op/relu.hpp"
 
 namespace {
 
@@ -119,9 +120,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<SeparateInStandaloneBranchTransformationParams> obj) {
-        ov::Shape shapes;
-        SeparateInStandaloneBranchTransformationTestValues testValues;
-        std::tie(shapes, testValues) = obj.param;
+        const auto& [shapes, testValues] = obj.param;
 
         std::stringstream ss;
         ss << shapes << "_" << testValues;

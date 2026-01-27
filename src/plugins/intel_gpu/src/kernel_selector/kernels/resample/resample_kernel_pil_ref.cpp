@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -119,6 +119,8 @@ DataTensor GetIntermediateBufferSize(const resample_params& params) {
     auto ybox_last = GetLastRow(params);
     std::vector<size_t> dims = output.LogicalDims();
     auto channelIndex = DataTensor::Channelndex(layout, Convert(params.axes[eVertical]));
+    OPENVINO_ASSERT(channelIndex >= 0, "Invalid layout channel index");
+
     dims[channelIndex] = ybox_last - ybox_first;
     DataTensor result{dims, output.GetDType(), layout};
     return result;

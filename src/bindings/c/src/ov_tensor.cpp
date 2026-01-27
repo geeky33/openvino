@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "openvino/c/ov_tensor.h"
 
 #include "common.h"
 
+// clang-format off
 const std::map<ov_element_type_e, ov::element::Type> element_type_map = {
-    {ov_element_type_e::UNDEFINED, ov::element::dynamic},
     {ov_element_type_e::DYNAMIC, ov::element::dynamic},
     {ov_element_type_e::BOOLEAN, ov::element::boolean},
     {ov_element_type_e::BF16, ov::element::bf16},
@@ -34,6 +34,7 @@ const std::map<ov_element_type_e, ov::element::Type> element_type_map = {
     {ov_element_type_e::F4E2M1, ov::element::f4e2m1},
     {ov_element_type_e::F8E8M0, ov::element::f8e8m0},
 };
+// clang-format on
 
 ov_element_type_e find_ov_element_type_e(ov::element::Type type) {
     for (auto iter = element_type_map.begin(); iter != element_type_map.end(); iter++) {
@@ -41,7 +42,7 @@ ov_element_type_e find_ov_element_type_e(ov::element::Type type) {
             return iter->first;
         }
     }
-    return ov_element_type_e::UNDEFINED;
+    return ov_element_type_e::DYNAMIC;
 }
 
 ov::element::Type get_element_type(ov_element_type_e type) {
@@ -122,13 +123,16 @@ ov_status_e ov_tensor_get_shape(const ov_tensor_t* tensor, ov_shape_t* shape) {
     if (!tensor) {
         return ov_status_e::INVALID_C_PARAM;
     }
+    ov_status_e status = ov_status_e::OK;
     try {
         auto tmp_shape = tensor->object->get_shape();
-        ov_shape_create(tmp_shape.size(), nullptr, shape);
-        std::copy_n(tmp_shape.begin(), tmp_shape.size(), shape->dims);
+        status = ov_shape_create(tmp_shape.size(), nullptr, shape);
+        if (status == ov_status_e::OK) {
+            std::copy_n(tmp_shape.begin(), tmp_shape.size(), shape->dims);
+        }
     }
     CATCH_OV_EXCEPTIONS
-    return ov_status_e::OK;
+    return status;
 }
 
 ov_status_e ov_tensor_set_string_data(ov_tensor_t* tensor, const char** string_array, const size_t array_size) {

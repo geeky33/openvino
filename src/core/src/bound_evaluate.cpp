@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <stack>
 
 #include "compare.hpp"
+#include "openvino/core/bound_evaluation_util.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/shape_util.hpp"
@@ -281,8 +282,8 @@ bool default_bound_evaluator(const ov::Node* node,
     ov::TensorVector inputs;
     inputs.reserve(size);
     for (size_t i = 0; i < size; ++i) {
-        if (auto bound = (node->get_input_tensor(i).*get_bound)()) {
-            inputs.push_back(bound);
+        if (auto&& bound = (node->get_input_tensor(i).*get_bound)()) {
+            inputs.push_back(std::move(bound));
         } else {
             return false;
         }
@@ -479,7 +480,7 @@ bool ov::interval_bound_evaluator(const Node* node,
             return false;
         };
 
-        TensorVector vector_of_unsqueezed_output_variants;
+        auto& vector_of_unsqueezed_output_variants = unsqueezed_output_variants.emplace_back();
         for (const auto& output : vector_of_output_variants) {
             auto unsqueezed_shape = output.get_shape();
             unsqueezed_shape.insert(unsqueezed_shape.begin(), 1);
@@ -490,7 +491,6 @@ bool ov::interval_bound_evaluator(const Node* node,
             op::v0::Unsqueeze().evaluate(unsqueezed_outputs, TensorVector{output, zero_t});
             vector_of_unsqueezed_output_variants.push_back(unsqueezed);
         }
-        unsqueezed_output_variants.push_back(vector_of_unsqueezed_output_variants);
     }
     const auto input_0_maximum_value = ov::util::make_tensor_of_max_value(low_0.get_element_type());
     const auto input_1_maximum_value = ov::util::make_tensor_of_max_value(low_1.get_element_type());
@@ -531,9 +531,10 @@ bool ov::interval_bound_evaluator(const Node* node,
         if (!upper_output_values[i]) {
             fully_defined = false;
         } else {
-            const auto output_maximum_value = make_tensor_max_of_type(upper_output_values[i].get_element_type());
+            auto output_maximum_value = make_tensor_max_of_type(upper_output_values[i].get_element_type());
 
-            op::v1::Select().evaluate(upper_out, {final_input_dyn_mask, output_maximum_value, upper_output_values[i]});
+            op::v1::Select().evaluate(upper_out,
+                                      {final_input_dyn_mask, std::move(output_maximum_value), upper_output_values[i]});
             node->get_output_tensor(i).set_upper_value(upper_output_values[i]);
         }
 
@@ -541,10 +542,8 @@ bool ov::interval_bound_evaluator(const Node* node,
             fully_defined = false;
         } else {
             // Can not set to make_tensor_of_min_value(lower_output_values[i]->get_element_type()) yet
-            auto then = Tensor{lower_out[0].get_element_type(), Shape{}};
-            auto then_data = static_cast<char*>(then.data());
-            std::memset(then_data, 0, then.get_byte_size());
-            op::v1::Select().evaluate(lower_out, {final_input_dyn_mask, then, lower_out[0]});
+            auto then = std::make_shared<op::v0::Constant>(lower_out[0].get_element_type(), Shape{}, 0);
+            op::v1::Select().evaluate(lower_out, {final_input_dyn_mask, then->get_tensor_view(), lower_out[0]});
             node->get_output_tensor(i).set_lower_value(lower_out[0]);
         }
     }
@@ -739,3 +738,16 @@ bool ov::default_symbol_evaluator(const Node* node,
     }
     return false;
 }
+
+namespace ov::util {
+ForceInvalidation::~ForceInvalidation() = default;
+
+bool have_same_bounds(const descriptor::Tensor& lhs, const descriptor::Tensor& rhs) {
+    return are_same_tensor(lhs.get_lower_value(), rhs.get_lower_value()) &&
+           are_same_tensor(lhs.get_upper_value(), rhs.get_upper_value());
+}
+
+void set_force_invalidation(descriptor::Tensor& tensor) {
+    tensor.get_rt_info().emplace(ForceInvalidation::get_type_info_static(), nullptr);
+}
+}  // namespace ov::util

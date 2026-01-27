@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -171,6 +171,7 @@ macro(ov_add_frontend)
                 COMMAND_EXPAND_LISTS)
         list(APPEND PROTO_SRCS "${OUTPUT_PB_SRC}")
         list(APPEND PROTO_HDRS "${OUTPUT_PB_HEADER}")
+        set_source_files_properties(${OUTPUT_PB_SRC} PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
     endforeach()
 
     file(GLOB flatbuffers_schema_files ${frontend_root_dir}/src/schema/*.fbs)

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -93,13 +93,13 @@ def test_add_output_port():
     input_shape = PartialShape([1])
     param = ops.parameter(input_shape, dtype=np.float32, name="data")
     relu1 = ops.relu(param, name="relu1")
-    relu1.get_output_tensor(0).set_names({"relu_t1"})
     relu2 = ops.relu(relu1, name="relu2")
     model = Model(relu2, [param], "TestModel")
     assert len(model.results) == 1
     new_outs = model.add_outputs(relu1.output(0))
     assert len(model.results) == 2
     assert len(new_outs) == 1
+    assert len(new_outs[0].names) != 0
     assert new_outs[0].get_node().get_instance_id() == model.outputs[1].get_node().get_instance_id()
     assert new_outs[0].get_index() == model.outputs[1].get_index()
 
@@ -160,12 +160,15 @@ def test_get_result_index_invalid():
     assert model.get_result_index(invalid_output) == -1
 
 
-@pytest.mark.parametrize(("shapes", "relu_names", "model_name", "expected_outputs_length", "is_invalid", "expected_result_index"), [
-    ([PartialShape([1])], ["relu"], "TestModel", 1, False, 0),
-    ([PartialShape([1]), PartialShape([4])], ["relu1", "relu2"], "TestModel1", 1, True, -1)
-])
+@pytest.mark.parametrize(
+    ("shapes", "relu_names", "model_name", "expected_outputs_length", "is_invalid", "expected_result_index"),
+    [
+        ([PartialShape([1])], ["relu"], "TestModel", 1, False, 0),
+        ([PartialShape([1]), PartialShape([4])], ["relu1", "relu2"], "TestModel1", 1, True, -1)
+    ]
+)
 def test_result_index(shapes, relu_names, model_name, expected_outputs_length, is_invalid, expected_result_index):
-    params = [ops.parameter(shape, dtype=np.float32, name=f"data{i+1}") for i, shape in enumerate(shapes)]
+    params = [ops.parameter(shape, dtype=np.float32, name=f"data{i + 1}") for i, shape in enumerate(shapes)]
     relus = [ops.relu(param, name=relu_name) for param, relu_name in zip(params, relu_names)]
 
     model = Model(relus[0], [params[0]], model_name)
@@ -243,16 +246,16 @@ def test_model_sink_ctors():
     node = ops.assign(add, "var_id_667")
     res = ops.result(add, "res")
 
-    # Model(List[openvino._pyopenvino.op.Result], List[ov::Output<ov::Node>],
-    # List[openvino._pyopenvino.op.Parameter], str = '')
+    # Model(list[openvino._pyopenvino.op.Result], list[ov::Output<ov::Node>],
+    # list[openvino._pyopenvino.op.Parameter], str = '')
     model = Model(results=[res], sinks=[node.output(0)], parameters=[input_data], name="TestModel")
     model.validate_nodes_and_infer_types()
     sinks = ["Assign"]
     assert sinks == [sink.get_type_name() for sink in model.get_sinks()]
     assert model.sinks[0].get_output_shape(0) == Shape([2, 2])
 
-    # Model(List[ov::Output<ov::Node>, List[ov::Output<ov::Node>],
-    # List[openvino._pyopenvino.op.Parameter], str = '')
+    # Model(list[ov::Output<ov::Node>, list[ov::Output<ov::Node>],
+    # list[openvino._pyopenvino.op.Parameter], str = '')
     model = Model(results=[res.output(0)], sinks=[node.output(0)], parameters=[input_data], name="TestModel")
     model.validate_nodes_and_infer_types()
     assert model.sinks[0].get_output_shape(0) == Shape([2, 2])
@@ -268,16 +271,21 @@ def test_model_sink_ctors():
     assign = ops.assign(add, variable_1)
     res = ops.result(add, "res")
 
-    # Model(List[openvino._pyopenvino.op.Result], List[ov::Output<ov::Node>],
-    # List[openvino._pyopenvino.op.Parameter], List[openvino._pyopenvino.op.util.Variable], str = '')
-    model = Model(results=[res], sinks=[assign.output(0)], parameters=[input_data], variables=[variable_1], name="TestModel")
+    # Model(list[openvino._pyopenvino.op.Result], list[ov::Output<ov::Node>],
+    # list[openvino._pyopenvino.op.Parameter], list[openvino._pyopenvino.op.util.Variable], str = '')
+    model = Model(
+        results=[res], sinks=[assign.output(0)], parameters=[input_data], variables=[variable_1], name="TestModel"
+    )
     model.validate_nodes_and_infer_types()
     assert model.sinks[0].get_output_shape(0) == Shape([2, 2])
     assert sinks == [sink.get_type_name() for sink in model.get_sinks()]
 
-    # Model(List[ov::Output<ov::Node>, List[ov::Output<ov::Node>],
-    # List[openvino._pyopenvino.op.Parameter], List[openvino._pyopenvino.op.util.Variable], str = '')
-    model = Model(results=[res.output(0)], sinks=[assign.output(0)], parameters=[input_data], variables=[variable_1], name="TestModel")
+    # Model(list[ov::Output<ov::Node>, list[ov::Output<ov::Node>],
+    # list[openvino._pyopenvino.op.Parameter], list[openvino._pyopenvino.op.util.Variable], str = '')
+    model = Model(
+        results=[res.output(0)], sinks=[assign.output(0)], parameters=[input_data],
+        variables=[variable_1], name="TestModel"
+    )
     model.validate_nodes_and_infer_types()
     assert model.sinks[0].get_output_shape(0) == Shape([2, 2])
     assert sinks == [sink.get_type_name() for sink in model.get_sinks()]
@@ -693,15 +701,26 @@ def test_serialize_complex_rt_info(request, tmp_path):
 
         assert model.get_rt_info(["config", "type_of_model"]).astype(str) == "classification"
         assert model.get_rt_info(["config", "converter_type"]).astype(str) == "classification"
-        assert math.isclose(model.get_rt_info(["config", "model_parameters", "threshold"]).astype(float), 13.23, rel_tol=0.0001)
-        assert math.isclose(model.get_rt_info(["config", "model_parameters", "min"]).astype(float), -3.24543, rel_tol=0.0001)
-        assert math.isclose(model.get_rt_info(["config", "model_parameters", "max"]).astype(float), 3.234223, rel_tol=0.0001)
+        assert math.isclose(
+            model.get_rt_info(["config", "model_parameters", "threshold"]).astype(float), 13.23, rel_tol=0.0001
+        )
+        assert math.isclose(
+            model.get_rt_info(["config", "model_parameters", "min"]).astype(float), -3.24543, rel_tol=0.0001
+        )
+        assert math.isclose(
+            model.get_rt_info(["config", "model_parameters", "max"]).astype(float), 3.234223, rel_tol=0.0001
+        )
         assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "type"]).astype(str) == "tree"
-        assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "directed"]).astype(bool) is True
+        assert (
+            model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "directed"]).astype(bool) is True
+        )
 
         assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "float_empty"]).aslist() == []
         assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "nodes"]).aslist() == []
-        assert model.get_rt_info(["config", "model_parameters", "labels", "label_groups", "ids"]).aslist(str) == ["sasd", "fdfdfsdf"]
+        assert (
+            model.get_rt_info(["config", "model_parameters", "labels", "label_groups", "ids"]).aslist(str)
+            == ["sasd", "fdfdfsdf"]
+        )
         assert model.get_rt_info(["config", "model_parameters", "mean_values"]).aslist(float) == [22.3, 33.11, 44.0]
         assert model.get_rt_info("enum_info_int").astype(int) == 1
         assert model.get_rt_info("enum_info_str").astype(str) == "info_str"
@@ -912,5 +931,5 @@ def test_model_dir():
 
 
 def test_model_without_arguments():
-    with pytest.raises(ValueError, match="Model cannot be instantiated without arguments."):
+    with pytest.raises(TypeError, match="The following argument types are supported"):
         Model()

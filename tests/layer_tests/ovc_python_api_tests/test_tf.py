@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import numpy as np
 import openvino as ov
@@ -1097,7 +1097,7 @@ class TestTFConversionParams(CommonMOConvertTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_mo_convert_tf_model(self, params, ie_device, precision, ir_version,
-                                 temp_dir, use_legacy_frontend):
+                                 temp_dir):
         fw_model_dict = params['fw_model']
         ref_model_dict = params['ref_model']
         test_params = params['params_test']

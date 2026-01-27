@@ -1,18 +1,19 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <vector>
+
 #include "convert.hpp"
 #include "executor.hpp"
+#include "memory_desc/cpu_memory_desc.h"
 #if defined(OV_CPU_WITH_ACL)
 #    include "acl/acl_convert.hpp"
 #endif
-
-#include "common/primitive_cache.hpp"
-#include "common/ref_convert.hpp"
-#include "onednn/iml_type_mapper.h"
 
 namespace ov::intel_cpu {
 
@@ -30,7 +31,7 @@ public:
                            const MemoryDescPtr& dstDesc,
                            const ExecutorContext::CPtr& context)
         : ExecutorFactoryLegacy(context) {
-        for (auto& desc : getConvertExecutorsList()) {
+        for (const auto& desc : getConvertExecutorsList()) {
             if (desc.builder->isSupported(convertParams, srcDesc, dstDesc)) {
                 supportedDescs.push_back(desc);
             }

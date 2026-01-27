@@ -1,11 +1,11 @@
-# Copyright (C) 2024 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
 import os
 import subprocess
 from pathlib import Path
-from typing import Iterable
+from collections.abc import Iterable
 
 from helpers import run, name_from_dockerfile
 

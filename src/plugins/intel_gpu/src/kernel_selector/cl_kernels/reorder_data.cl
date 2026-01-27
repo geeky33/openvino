@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -147,6 +147,12 @@ KERNEL (reorder_data)(
 #else
     #ifdef BF16_INPUT
         CALC_TYPE res = TO_CALC_TYPE(_convert_as_bfloat16_float(input[input_idx]));
+    #elif defined INT4_INPUT
+        const uint uint4_idx = input_idx >> 1;
+        OUTPUT_TYPE res = TO_OUTPUT_REORDER_TYPE(convert_as_int4_float(input[uint4_idx], input_idx));
+    #elif defined UINT4_INPUT
+        const uint uint4_idx = input_idx >> 1;
+        OUTPUT_TYPE res = TO_OUTPUT_REORDER_TYPE(convert_as_uint4_float(input[uint4_idx], input_idx));
     #else
         CALC_TYPE res = TO_CALC_TYPE(input[input_idx]);
     #endif

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,8 +69,12 @@ EnumNames<ov::op::v0::Interpolate::InterpolateMode>::get() {
     return enum_names;
 }
 
-void op::v0::Interpolate::set_attrs(Attributes attrs) {
+void op::v0::Interpolate::set_attrs(Attributes&& attrs) {
     m_attrs = std::move(attrs);
+}
+
+void op::v0::Interpolate::set_attrs(const Attributes& attrs) {
+    m_attrs = attrs;
 }
 
 }  // namespace ov

@@ -1,16 +1,19 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <atomic>
+#include <cstddef>
 #include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "cpu_memory.h"
 
@@ -54,7 +57,7 @@ public:
 
         SharedMemory(std::unique_lock<std::mutex>&& lock, MemoryInfo::Ptr memory, MemoryPtr newPtr = nullptr);
 
-        operator MemoryPtr() const;
+        explicit operator MemoryPtr() const;
         [[nodiscard]] bool isValid() const;
         void valid(bool b);
 
@@ -88,11 +91,11 @@ class SocketsWeights {
 public:
     SocketsWeights();
 
-    WeightsSharing::Ptr& operator[](int i);
-    const WeightsSharing::Ptr& operator[](int i) const;
+    WeightsSharing::Ptr& operator[](int socket_id);
+    const WeightsSharing::Ptr& operator[](int socket_id) const;
 
 #ifdef CPU_DEBUG_CAPS
-    std::vector<std::pair<int, WeightsSharing::Statistics>> dumpStatistics() const;
+    [[nodiscard]] std::vector<std::pair<int, WeightsSharing::Statistics>> dumpStatistics() const;
 #endif  // CPU_DEBUG_CAPS
 
 private:

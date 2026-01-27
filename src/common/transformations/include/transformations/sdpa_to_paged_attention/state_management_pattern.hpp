@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,8 +19,7 @@ class ov::pass::StateManagementPattern : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("StateManagementPattern");
     StateManagementPattern(ParameterVector& kv_parameters,
-                           ParameterVector& model_remaining_params,
-                           const std::shared_ptr<ov::op::v0::Constant>& sliding_window,
+                           ParameterVector& model_wide_params,
                            ParameterVector& parameters_to_remove,
                            int& layer_index,
                            ov::Output<Node> max_context_len,
@@ -29,7 +28,14 @@ public:
                            bool use_per_layer_block_indices_inputs,
                            bool use_score_outputs,
                            bool allow_cache_rotation,
+                           bool allow_score_aggregation,
+                           bool allow_xattention,
+                           bool allow_adaptive_rkv,
                            ParameterVector& rotated_block_indices_inputs_for_each_layer,
                            ParameterVector& rotation_deltas_inputs_for_each_layer,
-                           std::shared_ptr<op::v0::Parameter> model_rotation_trig_lut);
+                           ParameterVector& xattention_threshold_inputs_for_each_layer,
+                           ParameterVector& adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer,
+                           ParameterVector& adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer,
+                           ResultVector& adaptive_rkv_diversity_results,
+                           const std::map<std::string, std::shared_ptr<op::v0::Parameter>>& optional_model_wide_params);
 };

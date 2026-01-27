@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -157,10 +157,7 @@ public:
             const auto ta = ov::make_tensor_accessor(const_data);
 
             this->set_output_padding(propagate_padding(input_layout, output_layout.get_partial_shape(), prim->mode, ta));
-            return;
-        }
-
-        if (input_layout.batch() != output_layout.batch()) {
+        } else {
             // adjust output padding if Reshape has an outer padding exists in an input
             auto input_pitches = input_layout.get_pitches();
             auto input_pad = input_layout.data_padding;

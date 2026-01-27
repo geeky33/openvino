@@ -1,9 +1,10 @@
-﻿// Copyright (C) 2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "jitter.hpp"
 
+#include <cinttypes>
 #include <cstddef>
 #include <string>
 
@@ -115,11 +116,12 @@ void LayoutJitter::make_definitions(const layout& l, size_t shape_info_offset) {
                 m_strides[i] = JitTerm{to_code_string(strides[channel_index])};
             } else if (format::is_simple_data_format(fmt)) {
                 auto channel_it = std::find(actual_channels_order.begin(), actual_channels_order.end(), target_channel);
+                OPENVINO_ASSERT(channel_it != actual_channels_order.end());
+
                 m_strides[i] = JitTerm{"1"};
-                for (channel_it++; channel_it != actual_channels_order.end(); channel_it++) {
-                    auto idx =
-                        std::distance(default_channels_order.begin(), std::find(default_channels_order.begin(), default_channels_order.end(), *channel_it));
-                    auto idx_ext = channels_map[*channel_it];
+                for (auto it = std::next(channel_it); it != actual_channels_order.end(); ++it) {
+                    auto idx = std::distance(default_channels_order.begin(), std::find(default_channels_order.begin(), default_channels_order.end(), *it));
+                    auto idx_ext = channels_map[*it];
                     if (pad._lower_size.at(idx) > 0 || pad._upper_size.at(idx) > 0 || pad._dynamic_dims_mask[idx]) {
                         m_strides[i] = m_strides[i] * (m_dims[idx_ext] + m_pad_lower[idx_ext] + m_pad_upper[idx_ext]);
                     } else {
@@ -150,18 +152,18 @@ void LayoutJitter::make_definitions(const layout& l, size_t shape_info_offset) {
 }
 
 JitConstants make_type_jit_constants(const std::string& name, const ov::element::Type& value) {
-    std::string type = "undefined";
-    std::string max_val = "undefined";
-    std::string min_val = "undefined";
-    std::string val_one = "undefined";
-    std::string val_zero = "undefined";
-    std::string to_type = "undefined";
-    std::string to_type_sat = "undefined";
-    std::string as_type = "undefined";
-    std::string max_func = "undefined";
-    std::string min_func = "undefined";
-    std::string abs_func = "undefined";
-    std::string type_size = "undefined";
+    std::string type = "dynamic";
+    std::string max_val = "dynamic";
+    std::string min_val = "dynamic";
+    std::string val_one = "dynamic";
+    std::string val_zero = "dynamic";
+    std::string to_type = "dynamic";
+    std::string to_type_sat = "dynamic";
+    std::string as_type = "dynamic";
+    std::string max_func = "dynamic";
+    std::string min_func = "dynamic";
+    std::string abs_func = "dynamic";
+    std::string type_size = "dynamic";
     bool is_fp = false;
     switch (value) {
     case ov::element::i8:
@@ -390,7 +392,7 @@ JitConstants make_indexing_jit_functions(const std::string& name, const layout& 
 
     if (l.is_static()) {
         const JitTerm offset{to_code_string(l.get_linear_offset())};
-        if (l.count() == 1) {
+        if (l.count() <= 1) {
             // if tensor contains single element we can always return first element offset for safe function
             safe_index_func_val = offset;
             index_func_val = offset;

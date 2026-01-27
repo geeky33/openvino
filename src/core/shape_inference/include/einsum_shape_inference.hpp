@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -81,7 +81,7 @@ std::vector<TRShape> shape_infer(const Einsum* op, const std::vector<T>& input_s
                     ++dim_ind;
                 }
             }
-            for (auto label_it : single_input_label_to_shape) {
+            for (const auto& label_it : single_input_label_to_shape) {
                 // Repeated labels in single input node are eliminated, so we can merge them into the global
                 // label_to_shape.
                 if (label_to_shape.find(label_it.first) == label_to_shape.end()) {

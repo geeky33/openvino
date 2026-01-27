@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,10 +25,13 @@ ov::frontend::paddle::pass::TransformIf::TransformIf(std::vector<std::shared_ptr
 
     matcher_pass_callback callback = [funcs](pattern::Matcher& m) -> bool {
         const auto conditional_block = ov::as_type_ptr<ov::op::internal::ConditionalBlock>(m.get_match_root());
+        if (!conditional_block) {
+            return false;
+        }
         const auto mask_idx = conditional_block->get_input_size() - 1;
         const auto cond = conditional_block->get_input_node_shared_ptr(mask_idx);
 
-        if (!conditional_block || !cond) {
+        if (!cond) {
             return false;
         }
 

@@ -6,6 +6,23 @@ updates:
   # Python product dependencies
   #
 
+  #
+  # Root Python dependencies (pyproject.toml)
+  #
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Poland"
+    open-pull-requests-limit: 20
+    assignees:
+      - "p-wysocki"
+      - "akuporos"
+      - "rkazants"
+      - "mryzhov"
+    versioning-strategy: increase-if-necessary
+
   # Python API, Frontends
   - package-ecosystem: pip
     directory: "/src/bindings/python/"
@@ -13,14 +30,13 @@ updates:
       interval: "daily"
       time: "09:00"
       timezone: "Poland"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
     assignees:
       - "p-wysocki"
       - "akuporos"
       - "rkazants"
       - "ceciliapeng2011"
       - "meiyang-intel"
-      - "jane-intel"
     versioning-strategy: increase-if-necessary
 
   # Tests
@@ -30,7 +46,7 @@ updates:
       interval: "daily"
       time: "09:00"
       timezone: "Poland"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
     assignees:
       - "p-wysocki"
       - "akuporos"
@@ -44,7 +60,7 @@ updates:
       interval: "daily"
       time: "09:00"
       timezone: "Asia/Dubai"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
     assignees:
       - "rkazants"
       - "andrei-kochin"
@@ -66,7 +82,7 @@ updates:
       interval: "daily"
       time: "09:00"
       timezone: "Asia/Dubai"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
     assignees:
       - "Wovchena"
       - "p-wysocki"
@@ -80,7 +96,7 @@ updates:
       interval: "daily"
       time: "09:00"
       timezone: "Asia/Dubai"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
     assignees:
       - "Wovchena"
       - "p-wysocki"
@@ -94,7 +110,7 @@ updates:
       interval: "daily"
       time: "09:00"
       timezone: "Asia/Dubai"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
     assignees:
       - "Wovchena"
       - "p-wysocki"
@@ -108,7 +124,7 @@ updates:
       interval: "daily"
       time: "09:00"
       timezone: "Asia/Dubai"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
     assignees:
       - "Wovchena"
       - "p-wysocki"
@@ -130,8 +146,8 @@ updates:
     assignees:
       - "akashchi"
       - "mryzhov"
-      - "ilya-lavrenov"
-    open-pull-requests-limit: 3
+      - "akladiev"
+    open-pull-requests-limit: 10
 
   # Docker images
   - package-ecosystem: docker
@@ -146,5 +162,5 @@ updates:
     assignees:
       - "akashchi"
       - "mryzhov"
-      - "ilya-lavrenov"
-    open-pull-requests-limit: 3
+      - "akladiev"
+    open-pull-requests-limit: 10

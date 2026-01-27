@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -75,8 +75,7 @@ class TestSparseSegmentMean(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_sparse_segment_mean(self, op_type, data_type, indices_type, segment_indices_type,
                                  shape, indices_shape, segments_num,
-                                 ie_device, precision, ir_version, temp_dir,
-                                 use_legacy_frontend):
+                                 ie_device, precision, ir_version, temp_dir):
         kwargs = {}
         if ie_device == 'GPU':
             kwargs = {
@@ -85,4 +84,4 @@ class TestSparseSegmentMean(CommonTFLayerTest):
         self._test(*self.create_sparse_segment_mean(op_type, data_type, indices_type, segment_indices_type,
                                                     shape, indices_shape, segments_num),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend, **kwargs)
+                   **kwargs)

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -34,6 +34,11 @@ endif()
 if(NOT DEFINED OpenVINODeveloperPackage_RELOCATABLE)
     set(OpenVINODeveloperPackage_RELOCATABLE OFF)
 endif()
+
+ov_set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OV_LIBRARY_OUTPUT_DIRECTORY})
+ov_set_if_not_defined(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OV_ARCHIVE_OUTPUT_DIRECTORY})
+ov_set_if_not_defined(CMAKE_PDB_OUTPUT_DIRECTORY ${OV_PDB_OUTPUT_DIRECTORY})
+ov_set_if_not_defined(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OV_RUNTIME_OUTPUT_DIRECTORY})
 
 #
 # Check python requirements
@@ -186,11 +191,8 @@ endif()
 # Build the code
 #
 
-if(CMAKE_CROSSCOMPILING)
-    set(pybind11_min_version 2.12.0)
-else()
-    set(pybind11_min_version 2.12.0)
-endif()
+
+set(pybind11_min_version 3.0.1)
 # search for FindPython3.cmake instead of legacy modules
 set(PYBIND11_FINDPYTHON ON)
 
@@ -209,7 +211,7 @@ add_subdirectory(src/pyopenvino)
 
 macro(ov_define_setup_py_packaging_vars)
     # Python3_VERSION_MAJOR and Python3_VERSION_MINOR are defined inside pybind11
-    set(pyversion python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR})
+    ov_get_pyversion(pyversion)
 
     # define version (syncronize with tools/openvino_dev/CMakeLists.txt)
     if(DEFINED ENV{CI_BUILD_DEV_TAG} AND NOT "$ENV{CI_BUILD_DEV_TAG}" STREQUAL "")
@@ -242,6 +244,7 @@ macro(ov_define_setup_py_packaging_vars)
         WHEEL_VERSION=${WHEEL_VERSION}
         WHEEL_BUILD=${WHEEL_BUILD}
         # build locations
+        OPENVINO_SOURCE_DIR=${OpenVINO_SOURCE_DIR}
         OPENVINO_BINARY_DIR=${OpenVINO_BINARY_DIR}
         OPENVINO_PYTHON_BINARY_DIR=${OpenVINOPython_BINARY_DIR}
         # to create proper directories for BA, OVC tools
@@ -276,7 +279,8 @@ macro(ov_define_setup_py_dependencies)
 
     list(APPEND ov_setup_py_deps
         ${openvino_py_files}
-        "${CMAKE_CURRENT_SOURCE_DIR}/wheel/setup.py"
+        "${OpenVINO_SOURCE_DIR}/pyproject.toml"
+        "${OpenVINO_SOURCE_DIR}/setup.py"
         "${OpenVINOPython_SOURCE_DIR}/requirements.txt"
         "${OpenVINOPython_SOURCE_DIR}/wheel/readme.txt"
         "${OpenVINO_SOURCE_DIR}/LICENSE"
@@ -321,13 +325,12 @@ if(ENABLE_PYTHON_PACKAGING)
     set(openvino_meta_info_file "${ov_install_lib}/${openvino_meta_info_subdir}/PKG-INFO")
 
     add_custom_command(OUTPUT ${openvino_meta_info_file}
-        COMMAND ${CMAKE_COMMAND} -E remove_directory
-            "${ov_python_package_prefix}"
+        COMMAND ${CMAKE_COMMAND} -E remove_directory "${ov_python_package_prefix}"
         COMMAND ${setup_py_env}
                 # variables to reflect options (extensions only or full wheel package)
                 PYTHON_EXTENSIONS_ONLY=ON
                 SKIP_RPATH=ON
-            "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/wheel/setup.py"
+                "${Python3_EXECUTABLE}" "${OpenVINO_SOURCE_DIR}/setup.py"
                 --no-user-cfg
                 --quiet
                 build
@@ -412,37 +415,4 @@ if(OpenVINODeveloperPackage_FOUND)
     include("${OpenVINO_SOURCE_DIR}/cmake/packaging/packaging.cmake")
 
     ov_cpack(${OV_CPACK_COMPONENTS_ALL})
-endif()
-
-# only for developers, skip on CI
-if(NOT DEFINED ENV{CI_BUILD_DEV_TAG} AND NOT DEFINED CI_BUILD_NUMBER)
-
-    # check pybind11-stubgen package
-    execute_process(COMMAND ${Python3_EXECUTABLE} -m pip show pybind11-stubgen
-                    OUTPUT_VARIABLE pybind11_stubgen_info OUTPUT_STRIP_TRAILING_WHITESPACE
-                    RESULT_VARIABLE pybind11_stubgen_result)
-    string(REGEX MATCH "Version: ([\\.0-9]+)" pybind11_stubgen_version "${pybind11_stubgen_info}")
-    if(pybind11_stubgen_result OR NOT pybind11_stubgen_version)
-        message(FATAL_ERROR "pybind11-stubgen package is not installed or version is not detected. This package is necessary for developing Python API.")
-    endif()
-
-    # check pre-commit package    
-    execute_process(COMMAND ${Python3_EXECUTABLE} -m pip show pre-commit
-                    OUTPUT_VARIABLE precommit_pkg_info OUTPUT_STRIP_TRAILING_WHITESPACE
-                    RESULT_VARIABLE precommit_pkg_result)
-    string(REGEX MATCH "Version: ([\\.0-9]+)" precommit_pkg_version "${precommit_pkg_info}")
-    if(precommit_pkg_result OR NOT precommit_pkg_version)
-        message(FATAL_ERROR "pre-commit package is not installed or version is not detected. This package is necessary for developing Python API.")
-    endif()
-
-    # attach the pre-commit hook for Python stub generation
-    execute_process(COMMAND pre-commit install -c "${CMAKE_CURRENT_SOURCE_DIR}/scripts/stub_generation_precommit.yaml"
-                    RESULT_VARIABLE precommit_install_result
-                    ERROR_VARIABLE precommit_install_error
-                    OUTPUT_STRIP_TRAILING_WHITESPACE
-                    ERROR_STRIP_TRAILING_WHITESPACE)
-    if(NOT precommit_install_result EQUAL "0")
-        message(FATAL_ERROR "pre-commit hook install failed with error: ${precommit_install_error}")
-    endif()
-    message(STATUS "pre-commit hook for Python API stub generation has been installed")
 endif()

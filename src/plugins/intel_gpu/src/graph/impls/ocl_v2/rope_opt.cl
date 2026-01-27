@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -122,7 +122,12 @@
 #ifdef CHATGLM
 KERNEL(rope_opt)(
     OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* input,
+#ifdef USE_ROPE_CACHE
     const __global INPUT1_TYPE* cos_sin,
+#else
+    const __global INPUT1_TYPE* cos,
+    const __global INPUT2_TYPE* sin,
+#endif
     __global OUTPUT_TYPE* output) {
 #if VEC_SIZE != 1 && VEC_SIZE != 8 && VEC_SIZE != 16
 #   error "rope_opt.cl - VEC_SIZE must be one of {1, 8, 16}"
@@ -153,10 +158,18 @@ KERNEL(rope_opt)(
     uint cos_sin_p = p < INPUT1_BATCH_NUM ? p : 0;
     uint cos_sin_b = b < INPUT1_FEATURE_NUM ? b : 0;
     uint cos_sin_idx = INPUT1_GET_INDEX(cos_sin_p, cos_sin_b, 0, 0);
+#if !defined(USE_ROPE_CACHE)
+    uint cos_sin_r = r >> 1;
+#endif
 
 #if VEC_SIZE == 1
+    #ifdef USE_ROPE_CACHE
     float cosv = convert_float(cos_sin[cos_sin_idx + r]);
     float sinv = convert_float(cos_sin[cos_sin_idx + r + 1]);
+    #else
+    float cosv = convert_float(cos[cos_sin_idx + cos_sin_r]);
+    float sinv = convert_float(sin[cos_sin_idx + cos_sin_r]);
+    #endif
 
     float in1 = convert_float(input[input_idx + r]);
     float in2 = convert_float(input[input_idx + r + 1]);
@@ -171,14 +184,22 @@ KERNEL(rope_opt)(
 #elif VEC_SIZE == 8
     INPUT_VEC_TYPE inv1 = *(INPUT_VEC_TYPE*)(input + input_idx + r);
     INPUT_VEC_TYPE inv2 = *(INPUT_VEC_TYPE*)(input + input_idx + r + VEC_SIZE);
-    INPUT_VEC_TYPE cossinv1 = *(INPUT_VEC_TYPE*)(cos_sin + cos_sin_idx + r);
-    INPUT_VEC_TYPE cossinv2 = *(INPUT_VEC_TYPE*)(cos_sin + cos_sin_idx + r + VEC_SIZE);
 
-    float8 in1, in2, cosv, sinv;
+    float8 in1, in2;
     UNPACK_FLOAT_VEC_1(in1, inv1, inv2);
     UNPACK_FLOAT_VEC_2(in2, inv1, inv2);
+    #ifdef USE_ROPE_CACHE
+    INPUT_VEC_TYPE cossinv1 = *(INPUT_VEC_TYPE*)(cos_sin + cos_sin_idx + r);
+    INPUT_VEC_TYPE cossinv2 = *(INPUT_VEC_TYPE*)(cos_sin + cos_sin_idx + r + VEC_SIZE);
+    float8 cosv, sinv;
     UNPACK_FLOAT_VEC_1(cosv, cossinv1, cossinv2);
     UNPACK_FLOAT_VEC_2(sinv, cossinv1, cossinv2);
+    #else
+    INPUT_VEC_TYPE cosvv = *(INPUT_VEC_TYPE*)(cos + cos_sin_idx + cos_sin_r);
+    INPUT_VEC_TYPE sinvv = *(INPUT_VEC_TYPE*)(sin + cos_sin_idx + cos_sin_r);
+    float8 cosv = convert_float8(cosvv);
+    float8 sinv = convert_float8(sinvv);
+    #endif
     float8 out1 = cosv * in1 - sinv * in2;
     float8 out2 = sinv * in1 + cosv * in2;
 
@@ -195,12 +216,20 @@ KERNEL(rope_opt)(
 #elif VEC_SIZE == 16
     unroll_for(int i = 0; i < 2; i += 1) {
         INPUT_VEC_TYPE inv = *(INPUT_VEC_TYPE*)(input + input_idx + r + i * VEC_SIZE);
-        INPUT_VEC_TYPE cossinv = *(INPUT_VEC_TYPE*)(cos_sin + cos_sin_idx + r + i * VEC_SIZE);
-        float8 in1, in2, cosv, sinv;
+        float8 in1, in2;
         UNPACK_HALF_VEC_1(in1, inv);
         UNPACK_HALF_VEC_2(in2, inv);
+    #ifdef USE_ROPE_CACHE
+        INPUT_VEC_TYPE cossinv = *(INPUT_VEC_TYPE*)(cos_sin + cos_sin_idx + r + i * VEC_SIZE);
+        float8 cosv, sinv;
         UNPACK_HALF_VEC_1(cosv, cossinv);
         UNPACK_HALF_VEC_2(sinv, cossinv);
+    #else
+        MAKE_VECTOR_TYPE(INPUT0_TYPE, 8) cosvv = *(MAKE_VECTOR_TYPE(INPUT0_TYPE, 8)*)(cos + cos_sin_idx + cos_sin_r + i * 8);
+        MAKE_VECTOR_TYPE(INPUT0_TYPE, 8) sinvv = *(MAKE_VECTOR_TYPE(INPUT0_TYPE, 8)*)(sin + cos_sin_idx + cos_sin_r + i * 8);
+        float8 cosv = convert_float8(cosvv);
+        float8 sinv = convert_float8(sinvv);
+    #endif
         float8 out1 = cosv * in1 - sinv * in2;
         float8 out2 = sinv * in1 + cosv * in2;
 
@@ -302,10 +331,17 @@ KERNEL(rope_opt)
  const __global INPUT3_TYPE* gather,
 #endif
  __global OUTPUT_TYPE* output) {
+#ifdef REVERSED_GWS
+    const uint b = get_global_id(2);
+    const uint h = get_global_id(1);
+    const uint p = ((uint)get_global_id(0) * VEC_SIZE) / HALF_ROTARY_NDIMS;
+    const uint r = ((uint)get_global_id(0) * VEC_SIZE) % HALF_ROTARY_NDIMS;
+#else
     const uint b = get_global_id(0);
     const uint h = get_global_id(1);
     const uint p = ((uint)get_global_id(2) * VEC_SIZE) / HALF_ROTARY_NDIMS;
     const uint r = ((uint)get_global_id(2) * VEC_SIZE) % HALF_ROTARY_NDIMS;
+#endif
 
 #if ENABLE_TRANSPOSE
     uint input_idx = INPUT0_GET_INDEX(b, p, h, 0);
@@ -315,7 +351,6 @@ KERNEL(rope_opt)
         input_idx += SLICED_FROM_START;
     #endif
 #endif
-
 uint cos_sin_p = p;
 #ifdef ENABLE_GATHER
     uint gather_b = b < INPUT3_BATCH_NUM ? b : 0;
@@ -349,7 +384,7 @@ uint cos_sin_p = p;
     uint cos_sin_h = 0;
     cos_sin_p = cos_sin_p < INPUT1_BATCH_NUM ? cos_sin_p : 0;
 
-    #ifndef SIN_COS_HAVE_DYNAMIC_PADDINGS
+#ifndef SIN_COS_HAVE_DYNAMIC_PADDINGS
     uint cos_sin_idx = INPUT1_GET_INDEX(cos_sin_p, 0, 0, 0);
 
     uint cos_idx = cos_sin_idx;
@@ -358,27 +393,40 @@ uint cos_sin_p = p;
     uint cos_idx = INPUT1_GET_INDEX(cos_sin_p, 0, 0, 0);
     uint sin_idx = INPUT2_GET_INDEX(cos_sin_p, 0, 0, 0);
 #endif
+#elif INPUT1_DIMS == 3 && INPUT2_DIMS == 3
+    uint cos_sin_b = b < INPUT1_BATCH_NUM ? b : 0;
+    uint cos_sin_h = h < INPUT1_FEATURE_NUM ? h : 0;
+#ifndef SIN_COS_HAVE_DYNAMIC_PADDINGS
+    uint cos_sin_idx = INPUT1_GET_INDEX(cos_sin_b, cos_sin_h, 0, 0);
+
+    uint cos_idx = cos_sin_idx;
+    uint sin_idx = cos_sin_idx;
 #else
-#   error "rope_opt.cl - 4 or 2 of INPUT1_DIMS/INPUT2_DIMS is supported only"
+    uint cos_idx = INPUT1_GET_INDEX(cos_sin_b, cos_sin_h, 0, 0);
+    uint sin_idx = INPUT2_GET_INDEX(cos_sin_b, cos_sin_h, 0, 0);
+#endif
+#else
+#   error "rope_opt.cl - 2, 3 or 4 of INPUT1_DIMS/INPUT2_DIMS is supported only"
 #endif
 
     uint output_idx = OUTPUT_GET_INDEX(b, h, p, 0);
 
 #if VEC_SIZE == 1
-    INPUT0_TYPE in1 = input[input_idx + r];
-    INPUT0_TYPE in2 = input[input_idx + HALF_ROTARY_NDIMS + r];
+    ACCUMULATOR_TYPE in1 = TO_ACCUMULATOR_TYPE(input[input_idx + r]);
+    ACCUMULATOR_TYPE in2 = TO_ACCUMULATOR_TYPE(input[input_idx + HALF_ROTARY_NDIMS + r]);
 
-    output[output_idx + r] = cos[cos_idx + r] * in1 - sin[sin_idx + r] * in2;
+    ACCUMULATOR_TYPE res = cos[cos_idx + r] * in1 - sin[sin_idx + r] * in2;
+    output[output_idx + r] = TO_OUTPUT_TYPE(res);
 
-    output[output_idx + HALF_ROTARY_NDIMS + r] =
-        cos[cos_idx + HALF_ROTARY_NDIMS + r] * in2 + sin[sin_idx + HALF_ROTARY_NDIMS + r] * in1;
+    res = cos[cos_idx + COS_SIN_TABLE_OFFSET + r] * in2 + sin[sin_idx + COS_SIN_TABLE_OFFSET + r] * in1;
+    output[output_idx + HALF_ROTARY_NDIMS + r] = TO_OUTPUT_TYPE(res);
 #else
     INPUT_VEC_TYPE in1 = *(INPUT_VEC_TYPE*)(input + input_idx + r);
     INPUT_VEC_TYPE in2 = *(INPUT_VEC_TYPE*)(input + input_idx + HALF_ROTARY_NDIMS + r);
     INPUT_VEC_TYPE cos1 = *(INPUT_VEC_TYPE*)(cos + cos_idx + r);
-    INPUT_VEC_TYPE cos2 = *(INPUT_VEC_TYPE*)(cos + cos_idx + HALF_ROTARY_NDIMS + r);
+    INPUT_VEC_TYPE cos2 = *(INPUT_VEC_TYPE*)(cos + cos_idx + COS_SIN_TABLE_OFFSET + r);
     INPUT_VEC_TYPE sin1 = *(INPUT_VEC_TYPE*)(sin + sin_idx + r);
-    INPUT_VEC_TYPE sin2 = *(INPUT_VEC_TYPE*)(sin + sin_idx + HALF_ROTARY_NDIMS + r);
+    INPUT_VEC_TYPE sin2 = *(INPUT_VEC_TYPE*)(sin + sin_idx + COS_SIN_TABLE_OFFSET + r);
 
     OUTPUT_VEC_TYPE out1 = cos1 * in1 - sin1 * in2;
     OUTPUT_VEC_TYPE out2 = cos2 * in2 + sin2 * in1;
@@ -386,6 +434,7 @@ uint cos_sin_p = p;
     *(OUTPUT_VEC_TYPE*)(output + output_idx + r) = out1;
     *(OUTPUT_VEC_TYPE*)(output + output_idx + HALF_ROTARY_NDIMS + r) = out2;
 #endif
+
 }
 #endif
 

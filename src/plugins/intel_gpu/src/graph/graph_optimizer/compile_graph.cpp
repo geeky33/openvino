@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,7 +56,7 @@ void compile_graph::run(program& p) {
                                     node->get_primitive()->type_string(),
                                     "\noriginal_type: ",
                                     node->get_primitive()->origin_op_type_name,
-                                    fail_reason);
+                                    " ", fail_reason);
                 } catch (std::exception&) {
                     exception = std::current_exception();
                 }

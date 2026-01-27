@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -97,7 +97,7 @@ TEST(threading, get_friendly_name) {
 
     auto graph = make_shared<ov::op::v1::Multiply>(abs_add_a3, abs_add_b2);
 
-    auto f = std::make_shared<Model>(ov::NodeVector{graph}, ParameterVector{a, b});
+    auto f = std::make_shared<Model>(ov::OutputVector{graph}, ParameterVector{a, b});
 
     const auto compare_names = [](const std::vector<std::string>& names) {
         static std::unordered_set<std::string> ref_names;
